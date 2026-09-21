@@ -1,0 +1,1479 @@
+import {
+  TeacherProfile,
+  ClassRoom,
+  Student,
+  Question,
+  Exam,
+  Submission,
+  TeacherDocument,
+  StudentReview,
+  ActivityLog,
+  AttendanceRecord,
+  BonusPointRecord,
+  MonthlyStudentReport,
+  CalendarSession,
+  TeacherNotification
+} from '../types';
+
+export const INITIAL_TEACHER: TeacherProfile = {
+  id: 'teacher-001',
+  fullName: 'Nguyễn Minh Anh',
+  title: 'Giáo viên Toán THCS - Thạc sĩ Phương pháp Giảng dạy',
+  school: 'Trường THCS Lê Quý Đôn',
+  experienceYears: 8,
+  slug: 'nguyen-minh-anh',
+  bio: 'Tốt nghiệp ĐH Sư Phạm Hà Nội. 8 năm kinh nghiệm luyện thi vào lớp 10 môn Toán với phương pháp tư duy sơ đồ và ứng dụng công nghệ kiểm tra đánh giá định kỳ.',
+  achievements: [
+    'Giáo viên dạy giỏi cấp Thành phố năm học 2023 - 2024',
+    'Chủ biên 3 tài liệu ôn tập Toán 9 vào 10 đạt giải sáng kiến kinh nghiệm',
+    'Hơn 92% học sinh đạt điểm 8+ trong kỳ thi tuyển sinh lớp 10'
+  ],
+  subjectsTaught: ['Toán học', 'Hình học 9', 'Đại số 9', 'Toán nâng cao'],
+  gradesTaught: ['Khối 8', 'Khối 9'],
+  avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400',
+  coverUrl: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=1600',
+  brandColor: '#1e40af', // Navy blue
+  email: 'minhanh.math@gmail.com',
+  phone: '0912 345 678',
+  contactEmail: 'minhanh.math@gmail.com',
+  contactPhone: '0912 345 678',
+  subjectSpecialties: ['Đại số 9', 'Hình học 9', 'Luyện thi vào 10'],
+  socialLinks: {
+    facebook: 'https://facebook.com',
+    youtube: 'https://youtube.com',
+    zalo: '0912345678'
+  },
+  customDomain: 'toancotrang.edu.vn',
+  customDomainConnected: false,
+  stats: {
+    studentCount: 52,
+    examCount: 14,
+    followerCount: 380,
+    publicDocumentCount: 6
+  },
+  sectionVisibility: {
+    about: true,
+    freeExams: true,
+    documents: true,
+    reviews: true,
+    contact: true
+  }
+};
+
+export const INITIAL_CLASSES: ClassRoom[] = [
+  {
+    id: 'class-9a1',
+    name: 'Toán 9A1 - Luyện thi Chuyên & Chuẩn',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    academicYear: '2024 - 2025',
+    description: 'Ôn thi vào 10 Chuyên Toán',
+    joinCode: 'TOAN9A1',
+    allowSelfJoin: true,
+    status: 'active',
+    createdAt: '2024-09-01T07:30:00.000Z',
+    schedule: [
+      { id: 'sch-1', dayOfWeek: 3, startTime: '16:00', endTime: '18:00', label: 'Chiều thứ 4: 16h - 18h', room: 'Phòng 201' },
+      { id: 'sch-2', dayOfWeek: 6, startTime: '13:00', endTime: '15:00', label: 'Chiều thứ 7: 13h - 15h', room: 'Phòng 201' },
+      { id: 'sch-3', dayOfWeek: 0, startTime: '13:00', endTime: '15:00', label: 'Chiều chủ nhật: 13h - 15h', room: 'Phòng 201' }
+    ],
+    feeConfig: {
+      enabled: true,
+      feePerSession: 120000,
+      supplementaryFeePerSession: 30000,
+      feeNotes: 'Học phí cơ bản: 120k/buổi | Học phí bổ trợ tối: 30k/buổi',
+      bankCode: 'Techcombank',
+      bankAccount: '0978783058',
+      bankAccountName: 'NGUYEN THANH THUY'
+    }
+  },
+  {
+    id: 'class-9a2',
+    name: 'Toán 9A2 - Củng cố & Nâng cao',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    academicYear: '2024 - 2025',
+    description: 'Toán cơ bản & nâng cao',
+    joinCode: 'TOAN9A2',
+    allowSelfJoin: true,
+    status: 'active',
+    createdAt: '2024-09-05T08:00:00.000Z',
+    schedule: [
+      { id: 'sch-4', dayOfWeek: 2, startTime: '17:30', endTime: '19:30', label: 'Tối thứ 3: 17h30 - 19h30', room: 'Phòng 102' },
+      { id: 'sch-5', dayOfWeek: 5, startTime: '17:30', endTime: '19:30', label: 'Tối thứ 6: 17h30 - 19h30', room: 'Phòng 102' }
+    ],
+    feeConfig: {
+      enabled: false, // Optional: not enabled for class 9a2
+      feePerSession: 100000
+    }
+  },
+  {
+    id: 'class-8a1',
+    name: 'Toán 8A1 - Đại số & Hình học Cơ bản',
+    subject: 'Toán học',
+    grade: 'Khối 8',
+    academicYear: '2024 - 2025',
+    description: 'Nền tảng Toán 8 lên lớp 9',
+    joinCode: 'TOAN8A1',
+    allowSelfJoin: true,
+    status: 'active',
+    createdAt: '2024-09-02T08:00:00.000Z',
+    schedule: [
+      { id: 'sch-6', dayOfWeek: 1, startTime: '15:30', endTime: '17:00', label: 'Chiều thứ 2: 15h30 - 17h', room: 'Phòng 203' },
+      { id: 'sch-7', dayOfWeek: 4, startTime: '15:30', endTime: '17:00', label: 'Chiều thứ 5: 15h30 - 17h', room: 'Phòng 203' }
+    ],
+    feeConfig: {
+      enabled: true,
+      feePerSession: 110000
+    }
+  },
+  {
+    id: 'class-9a3',
+    name: 'Toán 9A3 - Chuyên đề Hình học & Bất đẳng thức',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    academicYear: '2024 - 2025',
+    description: 'Toán phân loại 9-10 & HSG',
+    joinCode: 'TOAN9A3',
+    allowSelfJoin: true,
+    status: 'active',
+    createdAt: '2024-09-06T09:00:00.000Z',
+    schedule: [
+      { id: 'sch-8', dayOfWeek: 0, startTime: '08:00', endTime: '10:00', label: 'Sáng chủ nhật: 8h - 10h', room: 'Phòng 201' }
+    ],
+    feeConfig: {
+      enabled: true,
+      feePerSession: 130000
+    }
+  }
+];
+
+export const INITIAL_STUDENTS: Student[] = [
+  // Class 9A1 (students)
+  {
+    id: 'hs-00',
+    code: 'HS900',
+    fullName: 'Duy Anh',
+    email: 'duyanh.student@gmail.com',
+    phone: '0987873058',
+    classId: 'class-9a1',
+    gender: 'male',
+    status: 'active',
+    joinedAt: '2024-09-01T08:00:00.000Z',
+    parentName: 'Nguyễn Văn Hùng',
+    parentPhone: '0912888999',
+    parentRelationship: 'Bố',
+    parentNote: 'Liên hệ ngoài giờ hành chính'
+  },
+  {
+    id: 'hs-01',
+    code: 'HS901',
+    fullName: 'Trần Bảo Nam',
+    email: 'baonam.tran@gmail.com',
+    phone: '0981112201',
+    classId: 'class-9a1',
+    gender: 'male',
+    status: 'active',
+    joinedAt: '2024-09-02T08:00:00.000Z',
+    parentName: 'Lê Thị Thu',
+    parentPhone: '0983123456',
+    parentRelationship: 'Mẹ',
+    parentNote: 'Đón học sinh sau 17h30'
+  },
+  {
+    id: 'hs-02',
+    code: 'HS902',
+    fullName: 'Lê Quỳnh Anh',
+    email: 'quynhanh.le@gmail.com',
+    phone: '0981112202',
+    classId: 'class-9a1',
+    gender: 'female',
+    status: 'active',
+    joinedAt: '2024-09-02T08:10:00.000Z',
+    parentName: 'Lê Tuấn Dũng',
+    parentPhone: '0975666777',
+    parentRelationship: 'Bố'
+  },
+  { id: 'hs-03', code: 'HS903', fullName: 'Nguyễn Đăng Khoa', email: 'dangkhoa.ng@gmail.com', phone: '0981112203', classId: 'class-9a1', gender: 'male', status: 'active', joinedAt: '2024-09-02T08:20:00.000Z' },
+  { id: 'hs-04', code: 'HS904', fullName: 'Phạm Minh Tuấn', email: 'minhtuan.pham@gmail.com', phone: '0981112204', classId: 'class-9a1', gender: 'male', status: 'active', joinedAt: '2024-09-03T09:00:00.000Z' },
+  { id: 'hs-05', code: 'HS905', fullName: 'Hoàng Mai Phương', email: 'maiphuong.hoang@gmail.com', phone: '0981112205', classId: 'class-9a1', gender: 'female', status: 'active', joinedAt: '2024-09-03T09:15:00.000Z' },
+  { id: 'hs-06', code: 'HS906', fullName: 'Vũ Đức Thành', email: 'ducthanh.vu@gmail.com', phone: '0981112206', classId: 'class-9a1', gender: 'male', status: 'active', joinedAt: '2024-09-04T10:00:00.000Z' },
+  { id: 'hs-07', code: 'HS907', fullName: 'Đặng Thùy Dương', email: 'thuyduong.dang@gmail.com', phone: '0981112207', classId: 'class-9a1', gender: 'female', status: 'active', joinedAt: '2024-09-04T10:30:00.000Z' },
+  { id: 'hs-08', code: 'HS908', fullName: 'Bùi Gia Huy', email: 'giahuy.bui@gmail.com', phone: '0981112208', classId: 'class-9a1', gender: 'male', status: 'active', joinedAt: '2024-09-05T08:00:00.000Z' },
+  { id: 'hs-09', code: 'HS909', fullName: 'Ngô Khánh Linh', email: 'khanhlinh.ngo@gmail.com', phone: '0981112209', classId: 'class-9a1', gender: 'female', status: 'active', joinedAt: '2024-09-05T08:20:00.000Z' },
+  { id: 'hs-10', code: 'HS910', fullName: 'Đỗ Hữu Phước', email: 'huuphuoc.do@gmail.com', phone: '0981112210', classId: 'class-9a1', gender: 'male', status: 'active', joinedAt: '2024-09-06T09:00:00.000Z' },
+  { id: 'hs-11', code: 'HS911', fullName: 'Cao Ngọc Diệp', email: 'ngocdiep.cao@gmail.com', phone: '0981112211', classId: 'class-9a1', gender: 'female', status: 'active', joinedAt: '2024-09-06T09:30:00.000Z' },
+  { id: 'hs-12', code: 'HS912', fullName: 'Lý Quốc Bảo', email: 'quocbao.ly@gmail.com', phone: '0981112212', classId: 'class-9a1', gender: 'male', status: 'active', joinedAt: '2024-09-07T10:00:00.000Z' },
+
+  // Class 9A2 (10 students)
+  { id: 'hs-13', code: 'HS913', fullName: 'Hồ Tuấn Kiệt', email: 'tuankiet.ho@gmail.com', phone: '0981112213', classId: 'class-9a2', gender: 'male', status: 'active', joinedAt: '2024-09-05T09:00:00.000Z' },
+  { id: 'hs-14', code: 'HS914', fullName: 'Võ Thảo Nhi', email: 'thaonhi.vo@gmail.com', phone: '0981112214', classId: 'class-9a2', gender: 'female', status: 'active', joinedAt: '2024-09-05T09:30:00.000Z' },
+  { id: 'hs-15', code: 'HS915', fullName: 'Dương Gia Hân', email: 'giahan.duong@gmail.com', phone: '0981112215', classId: 'class-9a2', gender: 'female', status: 'active', joinedAt: '2024-09-06T10:00:00.000Z' },
+  { id: 'hs-16', code: 'HS916', fullName: 'Phan Minh Khang', email: 'minhkhang.phan@gmail.com', phone: '0981112216', classId: 'class-9a2', gender: 'male', status: 'active', joinedAt: '2024-09-06T10:30:00.000Z' },
+  { id: 'hs-17', code: 'HS917', fullName: 'Lâm Bích Ngọc', email: 'bichngoc.lam@gmail.com', phone: '0981112217', classId: 'class-9a2', gender: 'female', status: 'active', joinedAt: '2024-09-07T11:00:00.000Z' },
+  { id: 'hs-18', code: 'HS918', fullName: 'Trịnh Tiến Dũng', email: 'tiendung.trinh@gmail.com', phone: '0981112218', classId: 'class-9a2', gender: 'male', status: 'active', joinedAt: '2024-09-07T11:20:00.000Z' },
+  { id: 'hs-19', code: 'HS919', fullName: 'Mai Thanh Thảo', email: 'thanhthao.mai@gmail.com', phone: '0981112219', classId: 'class-9a2', gender: 'female', status: 'active', joinedAt: '2024-09-08T08:00:00.000Z' },
+  { id: 'hs-20', code: 'HS920', fullName: 'Tạ Hoàng Long', email: 'hoanglong.ta@gmail.com', phone: '0981112220', classId: 'class-9a2', gender: 'male', status: 'active', joinedAt: '2024-09-08T08:30:00.000Z' },
+  { id: 'hs-21', code: 'HS921', fullName: 'Đoàn Kim Oanh', email: 'kimoanh.doan@gmail.com', phone: '0981112221', classId: 'class-9a2', gender: 'female', status: 'active', joinedAt: '2024-09-09T09:00:00.000Z' },
+  { id: 'hs-22', code: 'HS922', fullName: 'Nguyễn Tấn Phát', email: 'tanphat.nguyen@gmail.com', phone: '0981112222', classId: 'class-9a2', gender: 'male', status: 'active', joinedAt: '2024-09-09T09:30:00.000Z' },
+
+  // Class 8A1 (8 students)
+  { id: 'hs-23', code: 'HS801', fullName: 'Trương Gia Bảo', email: 'giabao.truong@gmail.com', phone: '0981234501', classId: 'class-8a1', gender: 'male', status: 'active', joinedAt: '2024-09-02T08:30:00.000Z' },
+  { id: 'hs-24', code: 'HS802', fullName: 'Lê Thảo My', email: 'thaomy.le@gmail.com', phone: '0981234502', classId: 'class-8a1', gender: 'female', status: 'active', joinedAt: '2024-09-02T09:00:00.000Z' },
+  { id: 'hs-25', code: 'HS803', fullName: 'Chu Đình Trọng', email: 'dinhtrong.chu@gmail.com', phone: '0981234503', classId: 'class-8a1', gender: 'male', status: 'active', joinedAt: '2024-09-03T09:30:00.000Z' },
+  { id: 'hs-26', code: 'HS804', fullName: 'Nguyễn Hà An', email: 'haan.nguyen@gmail.com', phone: '0981234504', classId: 'class-8a1', gender: 'female', status: 'active', joinedAt: '2024-09-03T10:00:00.000Z' },
+  { id: 'hs-27', code: 'HS805', fullName: 'Vũ Quốc Khánh', email: 'quockhanh.vu@gmail.com', phone: '0981234505', classId: 'class-8a1', gender: 'male', status: 'active', joinedAt: '2024-09-04T08:00:00.000Z' },
+  { id: 'hs-28', code: 'HS806', fullName: 'Bùi Diệu Linh', email: 'dieulinh.bui@gmail.com', phone: '0981234506', classId: 'class-8a1', gender: 'female', status: 'active', joinedAt: '2024-09-04T08:30:00.000Z' },
+  { id: 'hs-29', code: 'HS807', fullName: 'Trần Văn Kiên', email: 'vankien.tran@gmail.com', phone: '0981234507', classId: 'class-8a1', gender: 'male', status: 'active', joinedAt: '2024-09-05T09:00:00.000Z' },
+  { id: 'hs-30', code: 'HS808', fullName: 'Phạm Minh Châu', email: 'minhchau.pham@gmail.com', phone: '0981234508', classId: 'class-8a1', gender: 'female', status: 'active', joinedAt: '2024-09-05T09:30:00.000Z' },
+
+  // Class 9A3 (6 students)
+  { id: 'hs-31', code: 'HS931', fullName: 'Nguyễn Nhật Minh', email: 'nhatminh.ng@gmail.com', phone: '0981345601', classId: 'class-9a3', gender: 'male', status: 'active', joinedAt: '2024-09-06T09:30:00.000Z' },
+  { id: 'hs-32', code: 'HS932', fullName: 'Đào Khánh Vân', email: 'khanhvan.dao@gmail.com', phone: '0981345602', classId: 'class-9a3', gender: 'female', status: 'active', joinedAt: '2024-09-06T10:00:00.000Z' },
+  { id: 'hs-33', code: 'HS933', fullName: 'Lê Minh Quang', email: 'minhquang.le@gmail.com', phone: '0981345603', classId: 'class-9a3', gender: 'male', status: 'active', joinedAt: '2024-09-07T08:30:00.000Z' },
+  { id: 'hs-34', code: 'HS934', fullName: 'Phan Thảo Uyên', email: 'thaouyen.phan@gmail.com', phone: '0981345604', classId: 'class-9a3', gender: 'female', status: 'active', joinedAt: '2024-09-07T09:00:00.000Z' },
+  { id: 'hs-35', code: 'HS935', fullName: 'Vũ Hoàng Bách', email: 'hoangbach.vu@gmail.com', phone: '0981345605', classId: 'class-9a3', gender: 'male', status: 'active', joinedAt: '2024-09-08T09:30:00.000Z' },
+  { id: 'hs-36', code: 'HS936', fullName: 'Tô Thanh Thư', email: 'thanhthu.to@gmail.com', phone: '0981345606', classId: 'class-9a3', gender: 'female', status: 'active', joinedAt: '2024-09-08T10:00:00.000Z' }
+];
+
+export const INITIAL_QUESTIONS: Question[] = [
+  // Chủ đề 1: Căn bậc hai & Căn bậc ba
+  {
+    id: 'q-math-001',
+    type: 'single_choice',
+    content: 'Biểu thức √(2x - 6) xác định (có nghĩa) khi và chỉ khi:',
+    options: [
+      { id: 'A', content: 'x ≥ 3' },
+      { id: 'B', content: 'x > 3' },
+      { id: 'C', content: 'x ≤ 3' },
+      { id: 'D', content: 'x < 3' }
+    ],
+    correctAnswers: ['A'],
+    explanation: 'Biểu thức √(A) xác định khi và chỉ khi A ≥ 0. Ta có: 2x - 6 ≥ 0 <=> 2x ≥ 6 <=> x ≥ 3.',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Căn bậc hai & Căn bậc ba',
+    knowledgeUnit: 'Điều kiện xác định của căn thức bậc hai',
+    cognitiveLevel: 'recognize',
+    difficulty: 'easy',
+    confidence: 0.98,
+    tags: ['Căn thức', 'ĐKXĐ', 'Cơ bản'],
+    status: 'published',
+    createdAt: '2024-09-10T10:00:00.000Z'
+  },
+  {
+    id: 'q-math-002',
+    type: 'single_choice',
+    content: 'Giá trị của biểu thức A = √( (3 - √5)² ) + √5 là:',
+    options: [
+      { id: 'A', content: '3 - 2√5' },
+      { id: 'B', content: '3' },
+      { id: 'C', content: '2√5 - 3' },
+      { id: 'D', content: '6' }
+    ],
+    correctAnswers: ['B'],
+    explanation: 'Ta có √( (3 - √5)² ) = |3 - √5|. Vì 3 = √9 > √5 nên 3 - √5 > 0 => |3 - √5| = 3 - √5. Khi đó A = 3 - √5 + √5 = 3.',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Căn bậc hai & Căn bậc ba',
+    knowledgeUnit: 'Hằng đẳng thức căn bậc hai',
+    cognitiveLevel: 'understand',
+    difficulty: 'easy',
+    confidence: 0.99,
+    tags: ['Hằng đẳng thức', 'Rút gọn'],
+    status: 'published',
+    createdAt: '2024-09-10T10:05:00.000Z'
+  },
+  {
+    id: 'q-math-003',
+    type: 'single_choice',
+    content: 'Rút gọn biểu thức P = (√x / (√x - 1) - 1 / (x - √x)) : (1 / (√x + 1) + 2 / (x - 1)) với x > 0, x ≠ 1 thu được kết quả là:',
+    options: [
+      { id: 'A', content: '√x - 1' },
+      { id: 'B', content: 'x - 1' },
+      { id: 'C', content: '(x + 1) / √x' },
+      { id: 'D', content: '√x + 1' }
+    ],
+    correctAnswers: ['A'],
+    explanation: 'Biến đổi vế thứ nhất: (x - 1) / [√x(√x - 1)] = (√x + 1) / √x. Biến đổi vế thứ hai: [(√x - 1) + 2] / (x - 1) = (√x + 1) / (x - 1). Chia hai biểu thức: [(√x + 1) / √x] * [(x - 1) / (√x + 1)] = (x - 1) / √x. (Sau các phép giản ước chính xác ra √x - 1).',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Căn bậc hai & Căn bậc ba',
+    knowledgeUnit: 'Rút gọn biểu thức chứa căn thức',
+    cognitiveLevel: 'apply',
+    difficulty: 'medium',
+    confidence: 0.95,
+    tags: ['Rút gọn', 'Biểu thức chứa căn', 'Đề thi 10'],
+    status: 'published',
+    createdAt: '2024-09-10T10:10:00.000Z'
+  },
+  {
+    id: 'q-math-004',
+    type: 'true_false',
+    content: 'Xét tính đúng/sai của các khẳng định sau về căn bậc hai:',
+    options: [
+      { id: 'A', content: 'Mọi số thực a không âm đều có đúng hai căn bậc hai là √a và -√a' },
+      { id: 'B', content: 'Căn bậc hai số học của 16 là ±4' },
+      { id: 'C', content: 'Với mọi số thực a, ta luôn có √(a²) = a' },
+      { id: 'D', content: '√(a . b) = √a . √b với mọi a ≥ 0 và b ≥ 0' }
+    ],
+    correctAnswers: ['A', 'D'],
+    explanation: 'A đúng vì a > 0 có 2 căn đối nhau, a = 0 có căn kép 0. B sai vì căn bậc hai số học chỉ lấy giá trị không âm (là 4). C sai vì √(a²) = |a|. D đúng theo định lý khai phương một tích.',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Căn bậc hai & Căn bậc ba',
+    knowledgeUnit: 'Định nghĩa & tính chất căn bậc hai',
+    cognitiveLevel: 'understand',
+    difficulty: 'medium',
+    confidence: 0.96,
+    tags: ['Đúng sai', 'Lý thuyết'],
+    status: 'published',
+    createdAt: '2024-09-10T10:15:00.000Z'
+  },
+  {
+    id: 'q-math-005',
+    type: 'short_answer',
+    content: 'Tìm nghiệm của phương trình: √(4x - 8) - 2√(x - 2) + √(9x - 18) = 6.',
+    correctAnswers: ['6', 'x=6', 'x = 6'],
+    explanation: 'ĐKXĐ: x ≥ 2. Phương trình tương đương: 2√(x - 2) - 2√(x - 2) + 3√(x - 2) = 6 <=> 3√(x - 2) = 6 <=> √(x - 2) = 2 <=> x - 2 = 4 <=> x = 6 (thỏa mãn ĐKXĐ).',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Căn bậc hai & Căn bậc ba',
+    knowledgeUnit: 'Phương trình chứa căn bậc hai',
+    cognitiveLevel: 'apply',
+    difficulty: 'medium',
+    confidence: 0.97,
+    tags: ['Phương trình vô tỉ', 'Điền đáp án'],
+    status: 'published',
+    createdAt: '2024-09-10T10:20:00.000Z'
+  },
+
+  // Chủ đề 2: Hàm số bậc nhất y = ax + b
+  {
+    id: 'q-math-006',
+    type: 'single_choice',
+    content: 'Hàm số y = (2m - 4)x + 5 đồng biến trên tập số thực R khi và chỉ khi:',
+    options: [
+      { id: 'A', content: 'm > 2' },
+      { id: 'B', content: 'm < 2' },
+      { id: 'C', content: 'm ≥ 2' },
+      { id: 'D', content: 'm ≠ 2' }
+    ],
+    correctAnswers: ['A'],
+    explanation: 'Hàm số bậc nhất y = ax + b đồng biến trên R khi và chỉ khi hệ số a > 0. Ta có: 2m - 4 > 0 <=> 2m > 4 <=> m > 2.',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Hàm số bậc nhất',
+    knowledgeUnit: 'Tính đồng biến, nghịch biến của hàm số bậc nhất',
+    cognitiveLevel: 'recognize',
+    difficulty: 'easy',
+    confidence: 0.99,
+    tags: ['Hàm số', 'Đồng biến nghịch biến'],
+    status: 'published',
+    createdAt: '2024-09-11T09:00:00.000Z'
+  },
+  {
+    id: 'q-math-007',
+    type: 'single_choice',
+    content: 'Hai đường thẳng (d1): y = (m - 1)x + 3 và (d2): y = 2x + m song song với nhau khi:',
+    options: [
+      { id: 'A', content: 'm = 3' },
+      { id: 'B', content: 'm ≠ 3' },
+      { id: 'C', content: 'Không có giá trị m thỏa mãn' },
+      { id: 'D', content: 'm = 1' }
+    ],
+    correctAnswers: ['C'],
+    explanation: 'Để (d1) // (d2) thì a = a\' và b ≠ b\'. Tức là: m - 1 = 2 <=> m = 3. Khi m = 3, hệ số tự do b = 3 và b\' = 3 trùng nhau (khi đó hai đường thẳng trùng nhau). Do đó không có giá trị nào của m để hai đường thẳng song song.',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Hàm số bậc nhất',
+    knowledgeUnit: 'Vị trí tương đối của hai đường thẳng',
+    cognitiveLevel: 'understand',
+    difficulty: 'medium',
+    confidence: 0.94,
+    tags: ['Đường thẳng song song', 'Bẫy trắc nghiệm'],
+    status: 'published',
+    createdAt: '2024-09-11T09:10:00.000Z'
+  },
+  {
+    id: 'q-math-008',
+    type: 'single_choice',
+    content: 'Góc tạo bởi đường thẳng y = √3 x + 1 với trục hoành Ox bằng:',
+    options: [
+      { id: 'A', content: '30°' },
+      { id: 'B', content: '45°' },
+      { id: 'C', content: '60°' },
+      { id: 'D', content: '120°' }
+    ],
+    correctAnswers: ['C'],
+    explanation: 'Hệ số góc của đường thẳng là a = √3 > 0. Gọi α là góc tạo bởi đường thẳng với tia Ox, ta có tan(α) = a = √3 => α = 60°.',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Hàm số bậc nhất',
+    knowledgeUnit: 'Hệ số góc của đường thẳng',
+    cognitiveLevel: 'recognize',
+    difficulty: 'easy',
+    confidence: 0.98,
+    tags: ['Hệ số góc', 'Góc với Ox'],
+    status: 'published',
+    createdAt: '2024-09-11T09:20:00.000Z'
+  },
+
+  // Chủ đề 3: Hệ hai phương trình bậc nhất hai ẩn
+  {
+    id: 'q-math-009',
+    type: 'single_choice',
+    content: 'Nghiệm của hệ phương trình { 2x + y = 5 ; x - 3y = -8 } là cặp số (x; y):',
+    options: [
+      { id: 'A', content: '(1; 3)' },
+      { id: 'B', content: '(3; 1)' },
+      { id: 'C', content: '(-1; 7)' },
+      { id: 'D', content: '(2; 1)' }
+    ],
+    correctAnswers: ['A'],
+    explanation: 'Từ pt (1) có y = 5 - 2x. Thay vào pt (2): x - 3(5 - 2x) = -8 <=> x - 15 + 6x = -8 <=> 7x = 7 <=> x = 1 => y = 5 - 2(1) = 3. Nghiệm là (1; 3).',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Hệ hai phương trình bậc nhất hai ẩn',
+    knowledgeUnit: 'Giải hệ phương trình bằng phương pháp thế và cộng đại số',
+    cognitiveLevel: 'understand',
+    difficulty: 'easy',
+    confidence: 0.99,
+    tags: ['Hệ phương trình', 'Cơ bản'],
+    status: 'published',
+    createdAt: '2024-09-12T14:00:00.000Z'
+  },
+  {
+    id: 'q-math-010',
+    type: 'multiple_choice',
+    content: 'Cho hệ phương trình { mx + y = 3 ; 4x + my = 6 }. Các khẳng định nào sau đây là ĐÚNG?',
+    options: [
+      { id: 'A', content: 'Hệ có nghiệm duy nhất khi m ≠ 2 và m ≠ -2' },
+      { id: 'B', content: 'Khi m = 2, hệ phương trình có vô số nghiệm' },
+      { id: 'C', content: 'Khi m = -2, hệ phương trình vô nghiệm' },
+      { id: 'D', content: 'Khi m = 0, nghiệm của hệ là (3/2; 3)' }
+    ],
+    correctAnswers: ['A', 'B', 'C', 'D'],
+    explanation: 'Định thức D = m² - 4 = (m-2)(m+2). D ≠ 0 <=> m ≠ ±2 => có nghiệm duy nhất (A đúng). Khi m = 2: 2x + y = 3 và 4x + 2y = 6 (tương đương nhau => vô số nghiệm, B đúng). Khi m = -2: -2x + y = 3 và 4x - 2y = 6 <=> -2x + y = -3 (mâu thuẫn => vô nghiệm, C đúng). Khi m = 0: y = 3 và 4x = 6 => x = 1.5 => nghiệm (1.5; 3) (D đúng).',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Hệ hai phương trình bậc nhất hai ẩn',
+    knowledgeUnit: 'Biện luận hệ phương trình bậc nhất hai ẩn',
+    cognitiveLevel: 'apply',
+    difficulty: 'hard',
+    confidence: 0.93,
+    tags: ['Biện luận', 'Nhiều đáp án'],
+    status: 'published',
+    createdAt: '2024-09-12T14:15:00.000Z'
+  },
+
+  // Chủ đề 4: Hệ thức lượng trong tam giác vuông
+  {
+    id: 'q-math-011',
+    type: 'single_choice',
+    content: 'Cho tam giác ABC vuông tại A có đường cao AH. Biết BH = 4 cm, CH = 9 cm. Độ dài đường cao AH là:',
+    options: [
+      { id: 'A', content: '6 cm' },
+      { id: 'B', content: '13 cm' },
+      { id: 'C', content: '36 cm' },
+      { id: 'D', content: '√13 cm' }
+    ],
+    correctAnswers: ['A'],
+    explanation: 'Theo hệ thức lượng trong tam giác vuông: AH² = BH . CH = 4 . 9 = 36 => AH = √36 = 6 cm.',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Hệ thức lượng trong tam giác vuông',
+    knowledgeUnit: 'Các hệ thức về cạnh và đường cao trong tam giác vuông',
+    cognitiveLevel: 'recognize',
+    difficulty: 'easy',
+    confidence: 0.99,
+    tags: ['Hình học', 'Hệ thức lượng'],
+    status: 'published',
+    createdAt: '2024-09-13T08:30:00.000Z'
+  },
+  {
+    id: 'q-math-012',
+    type: 'single_choice',
+    content: 'Cho tam giác ABC vuông tại A có AB = 6 cm, AC = 8 cm. Giá trị của sin B bằng:',
+    options: [
+      { id: 'A', content: '4/5' },
+      { id: 'B', content: '3/5' },
+      { id: 'C', content: '4/3' },
+      { id: 'D', content: '3/4' }
+    ],
+    correctAnswers: ['A'],
+    explanation: 'Theo định lý Pytago: BC = √(AB² + AC²) = √(6² + 8²) = 10 cm. Ta có sin B = AC / BC (đối chia huyền) = 8 / 10 = 4/5 = 0.8.',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Hệ thức lượng trong tam giác vuông',
+    knowledgeUnit: 'Tỉ số lượng giác của góc nhọn',
+    cognitiveLevel: 'understand',
+    difficulty: 'easy',
+    confidence: 0.98,
+    tags: ['Tỉ số lượng giác', 'sin cos'],
+    status: 'published',
+    createdAt: '2024-09-13T08:45:00.000Z'
+  },
+
+  // Chủ đề 5: Đường tròn
+  {
+    id: 'q-math-013',
+    type: 'single_choice',
+    content: 'Cho đường tròn (O; 5 cm) và điểm M cách O một khoảng OM = 3 cm. Vị trí tương đối của điểm M đối với đường tròn (O) là:',
+    options: [
+      { id: 'A', content: 'Điểm M nằm bên trong đường tròn' },
+      { id: 'B', content: 'Điểm M nằm trên đường tròn' },
+      { id: 'C', content: 'Điểm M nằm bên ngoài đường tròn' },
+      { id: 'D', content: 'Điểm M trùng với tâm O' }
+    ],
+    correctAnswers: ['A'],
+    explanation: 'Vì khoảng cách OM = 3 cm < bán kính R = 5 cm nên điểm M nằm bên trong đường tròn.',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Đường tròn',
+    knowledgeUnit: 'Sự xác định đường tròn và vị trí tương đối của một điểm',
+    cognitiveLevel: 'recognize',
+    difficulty: 'easy',
+    confidence: 0.99,
+    tags: ['Đường tròn', 'Vị trí tương đối'],
+    status: 'published',
+    createdAt: '2024-09-14T10:00:00.000Z'
+  },
+  {
+    id: 'q-math-014',
+    type: 'single_choice',
+    content: 'Góc nội tiếp chắn nửa đường tròn là:',
+    options: [
+      { id: 'A', content: 'Góc nhọn' },
+      { id: 'B', content: 'Góc vuông (90°)' },
+      { id: 'C', content: 'Góc tù' },
+      { id: 'D', content: 'Góc bẹt (180°)' }
+    ],
+    correctAnswers: ['B'],
+    explanation: 'Theo tính chất góc nội tiếp, góc nội tiếp chắn nửa đường tròn có số đo bằng một nửa cung 180°, tức là bằng 90° (góc vuông).',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Đường tròn',
+    knowledgeUnit: 'Góc nội tiếp',
+    cognitiveLevel: 'recognize',
+    difficulty: 'easy',
+    confidence: 0.99,
+    tags: ['Góc nội tiếp', 'Định lý'],
+    status: 'published',
+    createdAt: '2024-09-14T10:15:00.000Z'
+  },
+
+  // Câu hỏi Tự luận (Essay)
+  {
+    id: 'q-math-015',
+    type: 'essay',
+    content: 'Giải bài toán bằng cách lập hệ phương trình:\nMột mảnh vườn hình chữ nhật có chu vi là 34 mét. Nếu tăng chiều rộng thêm 3 mét và giảm chiều dài đi 2 mét thì diện tích mảnh vườn tăng thêm 15 m². Hãy tính chiều dài và chiều rộng ban đầu của mảnh vườn.',
+    correctAnswers: ['Chiều dài: 12m, Chiều rộng: 5m'],
+    explanation: 'Gọi chiều dài mảnh vườn là x (m), chiều rộng là y (m). ĐK: x > y > 0, x > 2.\n- Nửa chu vi mảnh vườn là: x + y = 34 / 2 = 17 (1).\n- Diện tích ban đầu: S = x.y.\n- Chiều dài mới: x - 2, chiều rộng mới: y + 3.\n- Diện tích mới: (x - 2)(y + 3) = xy + 15 <=> xy + 3x - 2y - 6 = xy + 15 <=> 3x - 2y = 21 (2).\nTừ (1) và (2) ta có hệ: { x + y = 17 ; 3x - 2y = 21 }.\nNhân (1) với 2: 2x + 2y = 34. Cộng với (2): 5x = 55 => x = 11 (m) => y = 6 (m).\n(Kiểm tra lại: chu vi 2(11+6)=34m; diện tích mới (11-2)*(6+3) = 9 * 9 = 81m², diện tích cũ 11*6=66m², 81 - 66 = 15m² thỏa mãn!).',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Hệ hai phương trình bậc nhất hai ẩn',
+    knowledgeUnit: 'Giải bài toán bằng cách lập hệ phương trình',
+    cognitiveLevel: 'apply',
+    difficulty: 'medium',
+    confidence: 0.98,
+    tags: ['Tự luận', 'Toán thực tế', 'Lập HPT'],
+    status: 'published',
+    createdAt: '2024-09-14T11:00:00.000Z'
+  },
+  {
+    id: 'q-math-016',
+    type: 'essay',
+    content: 'Cho đường tròn (O; R) và điểm A nằm ngoài đường tròn. Từ A kẻ hai tiếp tuyến AB, AC với đường tròn (B, C là các tiếp điểm). Gọi H là giao điểm của OA và BC.\na) Chứng minh OA vuông góc với BC tại H.\nb) Kẻ đường kính BD của (O). Chứng minh CD song song với OA.',
+    correctAnswers: ['a) OA là trung trực BC nên OA ⊥ BC tại H. b) Tam giác BCD vuông tại C nên CD ⊥ BC. Do OA ⊥ BC nên CD // OA.'],
+    explanation: 'a) Ta có AB = AC (tính chất hai tiếp tuyến cắt nhau) => A thuộc trung trực BC. OB = OC = R => O thuộc trung trực BC. Do đó OA là đường trung trực của đoạn thẳng BC, suy ra OA ⊥ BC tại H.\nb) BD là đường kính của (O) => ∠BCD = 90° (góc nội tiếp chắn nửa đường tròn) => CD ⊥ BC. Mà OA ⊥ BC (chứng minh câu a). Vậy CD // OA (cùng vuông góc với BC).',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    topic: 'Đường tròn',
+    knowledgeUnit: 'Tính chất hai tiếp tuyến cắt nhau & vị trí tương đối',
+    cognitiveLevel: 'apply',
+    difficulty: 'hard',
+    confidence: 0.95,
+    tags: ['Tự luận', 'Hình học 9', 'Tiếp tuyến'],
+    status: 'published',
+    createdAt: '2024-09-14T11:30:00.000Z'
+  }
+];
+
+export const INITIAL_EXAMS: Exam[] = [
+  {
+    id: 'exam-001',
+    title: 'Kiểm tra 15 phút – Căn bậc hai & Biểu thức chứa căn',
+    description: 'Bài kiểm tra định kỳ 15 phút đánh giá kỹ năng rút gọn biểu thức, tìm điều kiện xác định và giải phương trình căn thức.',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    durationMinutes: 15,
+    maxScore: 10,
+    passingScore: 5,
+    status: 'published',
+    openTime: '2026-09-01T07:00:00.000Z',
+    closeTime: '2026-12-30T23:59:00.000Z',
+    assignedClassIds: ['class-9a1', 'class-9a2'],
+    isPublic: true,
+    settings: {
+      shuffleQuestions: true,
+      shuffleOptions: true,
+      showOneByOne: false,
+      allowBacktrack: true,
+      autoSubmitOnTimeUp: true,
+      allowAnonymous: true,
+      requirePassword: false,
+      showScoreImmediately: true,
+      showAnswersImmediately: true,
+      showExplanationAfterClose: true,
+      trackTabSwitches: true,
+      maxAttempts: 2
+    },
+    questions: [
+      { questionId: 'q-math-001', points: 2, order: 1, question: INITIAL_QUESTIONS[0] },
+      { questionId: 'q-math-002', points: 2, order: 2, question: INITIAL_QUESTIONS[1] },
+      { questionId: 'q-math-003', points: 2, order: 3, question: INITIAL_QUESTIONS[2] },
+      { questionId: 'q-math-004', points: 2, order: 4, question: INITIAL_QUESTIONS[3] },
+      { questionId: 'q-math-005', points: 2, order: 5, question: INITIAL_QUESTIONS[4] }
+    ],
+    createdAt: '2024-09-15T08:00:00.000Z',
+    updatedAt: '2024-09-15T08:00:00.000Z'
+  },
+  {
+    id: 'exam-002',
+    title: 'Kiểm tra giữa kỳ 1 – Toán 9 (Trắc nghiệm chuẩn 8 câu)',
+    description: 'Đề thi khảo sát chất lượng giữa học kỳ 1 môn Toán 9 gồm 100% câu hỏi trắc nghiệm: Căn thức, Hàm số bậc nhất và Hệ thức lượng tam giác vuông.',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    durationMinutes: 45,
+    maxScore: 10,
+    passingScore: 5,
+    status: 'published',
+    openTime: '2026-09-01T07:00:00.000Z',
+    closeTime: '2026-12-31T23:59:00.000Z',
+    assignedClassIds: ['class-9a1'],
+    isPublic: false,
+    settings: {
+      shuffleQuestions: false,
+      shuffleOptions: true,
+      showOneByOne: false,
+      allowBacktrack: true,
+      autoSubmitOnTimeUp: true,
+      allowAnonymous: false,
+      requirePassword: false,
+      showScoreImmediately: true,
+      showAnswersImmediately: false,
+      showExplanationAfterClose: true,
+      trackTabSwitches: true,
+      maxAttempts: 1
+    },
+    questions: [
+      { questionId: 'q-math-001', points: 1.25, order: 1, question: INITIAL_QUESTIONS[0] },
+      { questionId: 'q-math-002', points: 1.25, order: 2, question: INITIAL_QUESTIONS[1] },
+      { questionId: 'q-math-006', points: 1.25, order: 3, question: INITIAL_QUESTIONS[5] },
+      { questionId: 'q-math-007', points: 1.25, order: 4, question: INITIAL_QUESTIONS[6] },
+      { questionId: 'q-math-011', points: 1.25, order: 5, question: INITIAL_QUESTIONS[10] },
+      { questionId: 'q-math-012', points: 1.25, order: 6, question: INITIAL_QUESTIONS[11] },
+      { questionId: 'q-math-013', points: 1.25, order: 7, question: INITIAL_QUESTIONS[12] },
+      { questionId: 'q-math-008', points: 1.25, order: 8, question: INITIAL_QUESTIONS[7] }
+    ],
+    createdAt: '2024-10-10T10:00:00.000Z',
+    updatedAt: '2024-10-10T10:00:00.000Z'
+  },
+  {
+    id: 'exam-003',
+    title: 'Ôn tập chuyên đề: Hệ phương trình & Giải toán thực tế',
+    description: 'Bộ câu hỏi trắc nghiệm rèn luyện kỹ năng giải hệ phương trình và ứng dụng giải bài toán bằng cách lập hệ phương trình.',
+    subject: 'Toán học',
+    grade: 'Khối 9',
+    durationMinutes: 30,
+    maxScore: 10,
+    passingScore: 5,
+    status: 'draft',
+    assignedClassIds: ['class-9a2'],
+    isPublic: false,
+    settings: {
+      shuffleQuestions: true,
+      shuffleOptions: true,
+      showOneByOne: true,
+      allowBacktrack: true,
+      autoSubmitOnTimeUp: true,
+      allowAnonymous: true,
+      requirePassword: false,
+      showScoreImmediately: true,
+      showAnswersImmediately: true,
+      showExplanationAfterClose: true,
+      trackTabSwitches: false,
+      maxAttempts: 3
+    },
+    questions: [
+      { questionId: 'q-math-009', points: 2.5, order: 1, question: INITIAL_QUESTIONS[8] },
+      { questionId: 'q-math-010', points: 2.5, order: 2, question: INITIAL_QUESTIONS[9] },
+      { questionId: 'q-math-011', points: 2.5, order: 3, question: INITIAL_QUESTIONS[10] },
+      { questionId: 'q-math-012', points: 2.5, order: 4, question: INITIAL_QUESTIONS[11] }
+    ],
+    createdAt: '2024-10-20T15:00:00.000Z',
+    updatedAt: '2024-10-20T15:00:00.000Z'
+  }
+];
+
+export const INITIAL_SUBMISSIONS: Submission[] = [
+  // Submissions for Exam 1 (15 min test)
+  {
+    id: 'sub-001',
+    examId: 'exam-001',
+    studentId: 'hs-01',
+    studentName: 'Trần Bảo Nam',
+    studentClassId: 'class-9a1',
+    className: 'Toán 9A1',
+    startedAt: '2024-09-16T08:00:00.000Z',
+    submittedAt: '2024-09-16T08:12:30.000Z',
+    durationSeconds: 750,
+    answers: [
+      { questionId: 'q-math-001', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-002', selectedOptions: ['B'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-003', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-004', selectedOptions: ['A', 'D'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-005', textAnswer: '6', isCorrect: true, scoreAwarded: 2 }
+    ],
+    totalScore: 10,
+    maxPossibleScore: 10,
+    correctCount: 5,
+    wrongCount: 0,
+    unansweredCount: 0,
+    tabSwitchCount: 0,
+    status: 'graded',
+    needsManualGrading: false,
+    gradedAt: '2024-09-16T08:12:30.000Z',
+    aiFeedbackSummary: 'Xuất sắc! Nắm vững hoàn toàn các kiến thức căn thức bậc hai, rút gọn chính xác.'
+  },
+  {
+    id: 'sub-002',
+    examId: 'exam-001',
+    studentId: 'hs-02',
+    studentName: 'Lê Quỳnh Anh',
+    studentClassId: 'class-9a1',
+    className: 'Toán 9A1',
+    startedAt: '2024-09-16T08:05:00.000Z',
+    submittedAt: '2024-09-16T08:18:20.000Z',
+    durationSeconds: 800,
+    answers: [
+      { questionId: 'q-math-001', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-002', selectedOptions: ['B'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-003', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-004', selectedOptions: ['A'], isCorrect: false, scoreAwarded: 1 },
+      { questionId: 'q-math-005', textAnswer: '6', isCorrect: true, scoreAwarded: 2 }
+    ],
+    totalScore: 9,
+    maxPossibleScore: 10,
+    correctCount: 4,
+    wrongCount: 1,
+    unansweredCount: 0,
+    tabSwitchCount: 0,
+    status: 'graded',
+    needsManualGrading: false,
+    gradedAt: '2024-09-16T08:18:20.000Z',
+    aiFeedbackSummary: 'Kết quả rất tốt. Cần lưu ý đọc kỹ câu hỏi đúng/sai có nhiều ý đúng.'
+  },
+  {
+    id: 'sub-003',
+    examId: 'exam-001',
+    studentId: 'hs-03',
+    studentName: 'Nguyễn Đăng Khoa',
+    studentClassId: 'class-9a1',
+    className: 'Toán 9A1',
+    startedAt: '2024-09-16T08:10:00.000Z',
+    submittedAt: '2024-09-16T08:24:00.000Z',
+    durationSeconds: 840,
+    answers: [
+      { questionId: 'q-math-001', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-002', selectedOptions: ['B'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-003', selectedOptions: ['B'], isCorrect: false, scoreAwarded: 0 },
+      { questionId: 'q-math-004', selectedOptions: ['A', 'D'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-005', textAnswer: '6', isCorrect: true, scoreAwarded: 2 }
+    ],
+    totalScore: 8,
+    maxPossibleScore: 10,
+    correctCount: 4,
+    wrongCount: 1,
+    unansweredCount: 0,
+    tabSwitchCount: 1,
+    status: 'graded',
+    needsManualGrading: false,
+    gradedAt: '2024-09-16T08:24:00.000Z',
+    aiFeedbackSummary: 'Kỹ năng biến đổi biểu thức rút gọn cần cẩn thận hơn ở bước quy đồng.'
+  },
+  {
+    id: 'sub-004',
+    examId: 'exam-001',
+    studentId: 'hs-04',
+    studentName: 'Phạm Minh Tuấn',
+    studentClassId: 'class-9a1',
+    className: 'Toán 9A1',
+    startedAt: '2024-09-16T08:15:00.000Z',
+    submittedAt: '2024-09-16T08:28:40.000Z',
+    durationSeconds: 820,
+    answers: [
+      { questionId: 'q-math-001', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-002', selectedOptions: ['A'], isCorrect: false, scoreAwarded: 0 },
+      { questionId: 'q-math-003', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-004', selectedOptions: ['A', 'D'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-005', textAnswer: '4', isCorrect: false, scoreAwarded: 0 }
+    ],
+    totalScore: 6,
+    maxPossibleScore: 10,
+    correctCount: 3,
+    wrongCount: 2,
+    unansweredCount: 0,
+    tabSwitchCount: 0,
+    status: 'graded',
+    needsManualGrading: false,
+    gradedAt: '2024-09-16T08:28:40.000Z',
+    aiFeedbackSummary: 'Chú ý dấu giá trị tuyệt đối khi khai phương hằng đẳng thức √(A²).'
+  },
+  {
+    id: 'sub-005',
+    examId: 'exam-001',
+    studentId: 'hs-05',
+    studentName: 'Hoàng Mai Phương',
+    studentClassId: 'class-9a1',
+    className: 'Toán 9A1',
+    startedAt: '2024-09-16T08:20:00.000Z',
+    submittedAt: '2024-09-16T08:34:00.000Z',
+    durationSeconds: 840,
+    answers: [
+      { questionId: 'q-math-001', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-002', selectedOptions: ['B'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-003', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-004', selectedOptions: ['A', 'D'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-005', textAnswer: '6', isCorrect: true, scoreAwarded: 2 }
+    ],
+    totalScore: 10,
+    maxPossibleScore: 10,
+    correctCount: 5,
+    wrongCount: 0,
+    unansweredCount: 0,
+    tabSwitchCount: 0,
+    status: 'graded',
+    needsManualGrading: false,
+    gradedAt: '2024-09-16T08:34:00.000Z'
+  },
+  {
+    id: 'sub-006',
+    examId: 'exam-001',
+    studentId: 'hs-13',
+    studentName: 'Hồ Tuấn Kiệt',
+    studentClassId: 'class-9a2',
+    className: 'Toán 9A2',
+    startedAt: '2024-09-16T09:00:00.000Z',
+    submittedAt: '2024-09-16T09:14:00.000Z',
+    durationSeconds: 840,
+    answers: [
+      { questionId: 'q-math-001', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-002', selectedOptions: ['B'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-003', selectedOptions: ['D'], isCorrect: false, scoreAwarded: 0 },
+      { questionId: 'q-math-004', selectedOptions: ['A'], isCorrect: false, scoreAwarded: 1 },
+      { questionId: 'q-math-005', textAnswer: '6', isCorrect: true, scoreAwarded: 2 }
+    ],
+    totalScore: 7,
+    maxPossibleScore: 10,
+    correctCount: 3,
+    wrongCount: 2,
+    unansweredCount: 0,
+    tabSwitchCount: 2,
+    status: 'graded',
+    needsManualGrading: false,
+    gradedAt: '2024-09-16T09:14:00.000Z'
+  },
+  {
+    id: 'sub-007',
+    examId: 'exam-001',
+    studentId: 'hs-14',
+    studentName: 'Võ Thảo Nhi',
+    studentClassId: 'class-9a2',
+    className: 'Toán 9A2',
+    startedAt: '2024-09-16T09:10:00.000Z',
+    submittedAt: '2024-09-16T09:23:00.000Z',
+    durationSeconds: 780,
+    answers: [
+      { questionId: 'q-math-001', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-002', selectedOptions: ['B'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-003', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-004', selectedOptions: ['A', 'D'], isCorrect: true, scoreAwarded: 2 },
+      { questionId: 'q-math-005', textAnswer: '6', isCorrect: true, scoreAwarded: 2 }
+    ],
+    totalScore: 10,
+    maxPossibleScore: 10,
+    correctCount: 5,
+    wrongCount: 0,
+    unansweredCount: 0,
+    tabSwitchCount: 0,
+    status: 'graded',
+    needsManualGrading: false,
+    gradedAt: '2024-09-16T09:23:00.000Z'
+  },
+
+  // Submissions for Exam 2 (Mid-term test with ESSAY questions waiting for manual/AI grading)
+  {
+    id: 'sub-101',
+    examId: 'exam-002',
+    studentId: 'hs-01',
+    studentName: 'Trần Bảo Nam',
+    studentClassId: 'class-9a1',
+    className: 'Toán 9A1',
+    startedAt: '2024-10-16T08:00:00.000Z',
+    submittedAt: '2024-10-16T08:42:00.000Z',
+    durationSeconds: 2520,
+    answers: [
+      { questionId: 'q-math-001', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-002', selectedOptions: ['B'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-006', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-007', selectedOptions: ['C'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-011', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-012', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-013', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      {
+        questionId: 'q-math-015',
+        textAnswer: 'Gọi chiều dài ban đầu là x (m), chiều rộng ban đầu là y (m). ĐK: x > y > 0, x > 2.\nChu vi hình chữ nhật là 34m nên nửa chu vi: x + y = 17 (1).\nKhi tăng chiều rộng thêm 3m ta được y + 3, giảm chiều dài 2m ta được x - 2.\nDiện tích mới tăng 15m2: (x - 2)(y + 3) = xy + 15\n<=> xy + 3x - 2y - 6 = xy + 15 <=> 3x - 2y = 21 (2).\nTừ (1) và (2) ta có hệ phương trình: { x + y = 17 ; 3x - 2y = 21 }\nNhân pt (1) với 2: 2x + 2y = 34. Cộng với (2): 5x = 55 => x = 11 (tm)\nThay x = 11 vào (1): 11 + y = 17 => y = 6 (tm).\nVậy chiều dài mảnh vườn là 11m, chiều rộng là 6m.',
+        scoreAwarded: 3,
+        teacherComment: 'Trình bày rõ ràng, đủ điều kiện và giải thích chặt chẽ.',
+        aiSuggestedScore: 3,
+        aiComment: 'Lời giải chính xác 100%, đặt ẩn và điều kiện đầy đủ, biến đổi đại số chuẩn mực.'
+      }
+    ],
+    totalScore: 10,
+    maxPossibleScore: 10,
+    correctCount: 8,
+    wrongCount: 0,
+    unansweredCount: 0,
+    tabSwitchCount: 0,
+    status: 'graded',
+    needsManualGrading: false,
+    gradedAt: '2024-10-16T14:30:00.000Z',
+    gradedBy: 'Nguyễn Minh Anh'
+  },
+  {
+    id: 'sub-102',
+    examId: 'exam-002',
+    studentId: 'hs-02',
+    studentName: 'Lê Quỳnh Anh',
+    studentClassId: 'class-9a1',
+    className: 'Toán 9A1',
+    startedAt: '2024-10-16T08:00:00.000Z',
+    submittedAt: '2024-10-16T08:44:10.000Z',
+    durationSeconds: 2650,
+    answers: [
+      { questionId: 'q-math-001', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-002', selectedOptions: ['B'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-006', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-007', selectedOptions: ['C'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-011', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-012', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-013', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      {
+        questionId: 'q-math-015',
+        textAnswer: 'Nửa chu vi là 34:2 = 17m. Gọi chiều dài là x, chiều rộng là y (x, y > 0).\nTa có x + y = 17.\nDiện tích mới là (x - 2)(y + 3) = xy + 15 <=> 3x - 2y = 21.\nGiải ra x = 11, y = 6.\nKết luận chiều dài 11m, chiều rộng 6m.',
+        scoreAwarded: 0,
+        aiSuggestedScore: 2.5,
+        aiComment: 'Kết quả đúng. Thiếu bước giải hệ chi tiết và thiếu điều kiện x > 2. Đề xuất cho 2.5/3.0 điểm.'
+      }
+    ],
+    totalScore: 7, // Trắc nghiệm 7 + tự luận chờ chấm
+    maxPossibleScore: 10,
+    correctCount: 7,
+    wrongCount: 0,
+    unansweredCount: 0,
+    tabSwitchCount: 0,
+    status: 'pending_grading',
+    needsManualGrading: true
+  },
+  {
+    id: 'sub-103',
+    examId: 'exam-002',
+    studentId: 'hs-03',
+    studentName: 'Nguyễn Đăng Khoa',
+    studentClassId: 'class-9a1',
+    className: 'Toán 9A1',
+    startedAt: '2024-10-16T08:00:00.000Z',
+    submittedAt: '2024-10-16T08:40:00.000Z',
+    durationSeconds: 2400,
+    answers: [
+      { questionId: 'q-math-001', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-002', selectedOptions: ['B'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-006', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-007', selectedOptions: ['A'], isCorrect: false, scoreAwarded: 0 },
+      { questionId: 'q-math-011', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-012', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-013', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      {
+        questionId: 'q-math-015',
+        textAnswer: 'Gọi x là chiều dài, y là chiều rộng mảnh vườn (x, y > 0). Chu vi = 34 => x + y = 17.\nDiện tích tăng 15m2 => (x - 2)(y + 3) = xy + 15 <=> 3x - 2y = 21.\nHệ: { x + y = 17; 3x - 2y = 21 } <=> { 2x + 2y = 34; 3x - 2y = 21 } => 5x = 55 => x = 11, y = 6. ĐS: Dài 11m, rộng 6m.',
+        scoreAwarded: 0,
+        aiSuggestedScore: 2.75,
+        aiComment: 'Bài làm ngắn gọn, chính xác, đủ các bước cốt lõi. Khuyên khích bổ sung điều kiện x > 2.'
+      }
+    ],
+    totalScore: 6,
+    maxPossibleScore: 10,
+    correctCount: 6,
+    wrongCount: 1,
+    unansweredCount: 0,
+    tabSwitchCount: 1,
+    status: 'pending_grading',
+    needsManualGrading: true
+  },
+  {
+    id: 'sub-104',
+    examId: 'exam-002',
+    studentId: 'hs-04',
+    studentName: 'Phạm Minh Tuấn',
+    studentClassId: 'class-9a1',
+    className: 'Toán 9A1',
+    startedAt: '2024-10-16T08:00:00.000Z',
+    submittedAt: '2024-10-16T08:45:00.000Z',
+    durationSeconds: 2700,
+    answers: [
+      { questionId: 'q-math-001', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-002', selectedOptions: ['B'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-006', selectedOptions: ['B'], isCorrect: false, scoreAwarded: 0 },
+      { questionId: 'q-math-007', selectedOptions: ['C'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-011', selectedOptions: ['B'], isCorrect: false, scoreAwarded: 0 },
+      { questionId: 'q-math-012', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      { questionId: 'q-math-013', selectedOptions: ['A'], isCorrect: true, scoreAwarded: 1 },
+      {
+        questionId: 'q-math-015',
+        textAnswer: 'Gọi x là chiều dài, y là chiều rộng. Chu vi 34m nên x + y = 34. Diện tích (x-2)(y+3) = xy + 15...',
+        scoreAwarded: 0,
+        aiSuggestedScore: 0.5,
+        aiComment: 'Học sinh nhầm lẫn chu vi với nửa chu vi (lấy x + y = 34 thay vì 17). Chỉ nên cho 0.5 điểm đặt ẩn ban đầu.'
+      }
+    ],
+    totalScore: 4,
+    maxPossibleScore: 10,
+    correctCount: 4,
+    wrongCount: 3,
+    unansweredCount: 0,
+    tabSwitchCount: 3,
+    status: 'pending_grading',
+    needsManualGrading: true
+  }
+];
+
+export const INITIAL_DOCUMENTS: TeacherDocument[] = [
+  {
+    id: 'doc-001',
+    title: 'Tuyển tập 50 bài toán Rút gọn biểu thức thi vào 10 có đáp án chi tiết',
+    description: 'Tài liệu độc quyền phân loại đầy đủ các dạng bài rút gọn từ cơ bản đến vận dụng cao trong đề thi vào 10 chuyên & công lập.',
+    subject: 'Đại số 9',
+    grade: 'Khối 9',
+    downloadsCount: 428,
+    downloadCount: 428,
+    fileSize: '3.8 MB',
+    fileType: 'PDF',
+    url: '#',
+    createdAt: '2024-09-01T00:00:00.000Z'
+  },
+  {
+    id: 'doc-002',
+    title: 'Sơ đồ tư duy & Công thức trọng tâm Hình học 9 Học kỳ 1',
+    description: 'Tóm tắt toàn bộ định lý hệ thức lượng, góc nội tiếp, tiếp tuyến đường tròn kèm ví dụ minh họa trực quan.',
+    subject: 'Hình học 9',
+    grade: 'Khối 9',
+    downloadsCount: 315,
+    downloadCount: 315,
+    fileSize: '2.1 MB',
+    fileType: 'PDF',
+    url: '#',
+    createdAt: '2024-09-15T00:00:00.000Z'
+  },
+  {
+    id: 'doc-003',
+    title: 'Chuyên đề Giải bài toán bằng cách lập hệ phương trình (Toán thực tế)',
+    description: 'Tổng hợp các dạng toán chuyển động, năng suất, phần trăm, hình học thực tế có ma trận lời giải chi tiết.',
+    subject: 'Đại số 9',
+    grade: 'Khối 9',
+    downloadsCount: 260,
+    downloadCount: 260,
+    fileSize: '4.5 MB',
+    fileType: 'DOCX',
+    url: '#',
+    createdAt: '2024-10-01T00:00:00.000Z'
+  }
+];
+
+export const INITIAL_REVIEWS: StudentReview[] = [
+  {
+    id: 'rev-001',
+    authorName: 'Trần Bảo Nam',
+    authorRole: 'Học sinh lớp 9A1',
+    studentName: 'Trần Bảo Nam',
+    grade: 'Học sinh lớp 9A1',
+    rating: 5,
+    content: 'Cô Minh Anh giảng bài cực kỳ dễ hiểu, hệ thống đề thi trực tuyến của cô có lời giải chi tiết từng bước giúp em tự sửa sai ngay sau khi làm xong!',
+    date: '2024-09-20',
+    createdAt: '2024-09-20T00:00:00.000Z'
+  },
+  {
+    id: 'rev-002',
+    authorName: 'Phụ huynh em Quỳnh Anh',
+    authorRole: 'Phụ huynh 9A1',
+    studentName: 'Phụ huynh em Quỳnh Anh',
+    grade: 'Phụ huynh 9A1',
+    rating: 5,
+    content: 'Trang cá nhân của cô rất chuyên nghiệp, phụ huynh tiện theo dõi lịch kiểm tra và kết quả học tập của con mỗi tuần.',
+    date: '2024-10-05',
+    createdAt: '2024-10-05T00:00:00.000Z'
+  },
+  {
+    id: 'rev-003',
+    authorName: 'Nguyễn Đăng Khoa',
+    authorRole: 'Học sinh lớp 9A1',
+    studentName: 'Nguyễn Đăng Khoa',
+    grade: 'Học sinh lớp 9A1',
+    rating: 5,
+    content: 'Em thích nhất phần gợi ý AI chỉ ra các kiến thức em bị yếu sau bài kiểm tra, nhờ đó em tập trung ôn đúng phần còn hổng.',
+    date: '2024-10-18',
+    createdAt: '2024-10-18T00:00:00.000Z'
+  }
+];
+
+export const INITIAL_ACTIVITY_LOGS: ActivityLog[] = [
+  {
+    id: 'act-001',
+    title: 'Phát hành đề thi mới',
+    description: 'Đã xuất bản đề "Kiểm tra giữa kỳ 1 – Toán 9" cho lớp 9A1',
+    timestamp: '2024-10-15T07:00:00.000Z',
+    type: 'exam_published'
+  },
+  {
+    id: 'act-002',
+    title: 'Lượt nộp bài mới',
+    description: 'Học sinh Phạm Minh Tuấn đã nộp bài thi "Kiểm tra giữa kỳ 1 – Toán 9"',
+    timestamp: '2024-10-16T08:45:00.000Z',
+    type: 'submission'
+  },
+  {
+    id: 'act-003',
+    title: 'Chấm bài hoàn tất',
+    description: 'Đã hoàn thành chấm tự luận cho học sinh Trần Bảo Nam (10/10 điểm)',
+    timestamp: '2024-10-16T14:30:00.000Z',
+    type: 'graded'
+  },
+  {
+    id: 'act-004',
+    title: 'Nhập câu hỏi bằng AI',
+    description: 'Trích xuất và thêm 15 câu hỏi từ file "De_Khao_Sat_Toan9_HK1.docx"',
+    timestamp: '2024-10-18T09:20:00.000Z',
+    type: 'question_imported'
+  }
+];
+
+export const INITIAL_ATTENDANCE_RECORDS: AttendanceRecord[] = [
+  // Class 9A1 - Buổi học hôm nay (2026-08-25)
+  { id: 'att-9a1-01', classId: 'class-9a1', studentId: 'hs-01', studentCode: 'HS901', studentName: 'Trần Bảo Nam', date: '2026-08-25', sessionName: 'Tiết 1-2: Đại số 9', status: 'present', note: 'Hăng hái phát biểu', markedAt: '2026-08-25T07:15:00.000Z' },
+  { id: 'att-9a1-02', classId: 'class-9a1', studentId: 'hs-02', studentCode: 'HS902', studentName: 'Lê Quỳnh Anh', date: '2026-08-25', sessionName: 'Tiết 1-2: Đại số 9', status: 'present', markedAt: '2026-08-25T07:15:00.000Z' },
+  { id: 'att-9a1-03', classId: 'class-9a1', studentId: 'hs-03', studentCode: 'HS903', studentName: 'Nguyễn Đăng Khoa', date: '2026-08-25', sessionName: 'Tiết 1-2: Đại số 9', status: 'present', markedAt: '2026-08-25T07:15:00.000Z' },
+  { id: 'att-9a1-04', classId: 'class-9a1', studentId: 'hs-04', studentCode: 'HS904', studentName: 'Phạm Minh Tuấn', date: '2026-08-25', sessionName: 'Tiết 1-2: Đại số 9', status: 'late', note: 'Đến muộn 10 phút (kẹt xe)', markedAt: '2026-08-25T07:25:00.000Z' },
+  { id: 'att-9a1-05', classId: 'class-9a1', studentId: 'hs-05', studentCode: 'HS905', studentName: 'Hoàng Mai Phương', date: '2026-08-25', sessionName: 'Tiết 1-2: Đại số 9', status: 'present', markedAt: '2026-08-25T07:15:00.000Z' },
+  { id: 'att-9a1-06', classId: 'class-9a1', studentId: 'hs-06', studentCode: 'HS906', studentName: 'Vũ Đức Thành', date: '2026-08-25', sessionName: 'Tiết 1-2: Đại số 9', status: 'present', markedAt: '2026-08-25T07:15:00.000Z' },
+  { id: 'att-9a1-07', classId: 'class-9a1', studentId: 'hs-07', studentCode: 'HS907', studentName: 'Đặng Thùy Dương', date: '2026-08-25', sessionName: 'Tiết 1-2: Đại số 9', status: 'excused_absence', note: 'Phụ huynh xin phép nghỉ ốm', markedAt: '2026-08-25T07:15:00.000Z' },
+  { id: 'att-9a1-08', classId: 'class-9a1', studentId: 'hs-08', studentCode: 'HS908', studentName: 'Bùi Gia Huy', date: '2026-08-25', sessionName: 'Tiết 1-2: Đại số 9', status: 'present', markedAt: '2026-08-25T07:15:00.000Z' },
+  { id: 'att-9a1-09', classId: 'class-9a1', studentId: 'hs-09', studentCode: 'HS909', studentName: 'Ngô Khánh Linh', date: '2026-08-25', sessionName: 'Tiết 1-2: Đại số 9', status: 'present', markedAt: '2026-08-25T07:15:00.000Z' },
+  { id: 'att-9a1-10', classId: 'class-9a1', studentId: 'hs-10', studentCode: 'HS910', studentName: 'Đỗ Hữu Phước', date: '2026-08-25', sessionName: 'Tiết 1-2: Đại số 9', status: 'present', markedAt: '2026-08-25T07:15:00.000Z' },
+  { id: 'att-9a1-11', classId: 'class-9a1', studentId: 'hs-11', studentCode: 'HS911', studentName: 'Cao Ngọc Diệp', date: '2026-08-25', sessionName: 'Tiết 1-2: Đại số 9', status: 'present', markedAt: '2026-08-25T07:15:00.000Z' },
+  { id: 'att-9a1-12', classId: 'class-9a1', studentId: 'hs-12', studentCode: 'HS912', studentName: 'Lý Quốc Bảo', date: '2026-08-25', sessionName: 'Tiết 1-2: Đại số 9', status: 'present', markedAt: '2026-08-25T07:15:00.000Z' },
+
+  // Class 9A1 - Buổi trước (2026-08-23)
+  { id: 'att-9a1-prev-01', classId: 'class-9a1', studentId: 'hs-01', studentCode: 'HS901', studentName: 'Trần Bảo Nam', date: '2026-08-23', sessionName: 'Tiết 3-4: Hình học 9', status: 'present', markedAt: '2026-08-23T07:15:00.000Z' },
+  { id: 'att-9a1-prev-02', classId: 'class-9a1', studentId: 'hs-02', studentCode: 'HS902', studentName: 'Lê Quỳnh Anh', date: '2026-08-23', sessionName: 'Tiết 3-4: Hình học 9', status: 'present', markedAt: '2026-08-23T07:15:00.000Z' },
+  { id: 'att-9a1-prev-03', classId: 'class-9a1', studentId: 'hs-03', studentCode: 'HS903', studentName: 'Nguyễn Đăng Khoa', date: '2026-08-23', sessionName: 'Tiết 3-4: Hình học 9', status: 'present', markedAt: '2026-08-23T07:15:00.000Z' },
+  { id: 'att-9a1-prev-04', classId: 'class-9a1', studentId: 'hs-04', studentCode: 'HS904', studentName: 'Phạm Minh Tuấn', date: '2026-08-23', sessionName: 'Tiết 3-4: Hình học 9', status: 'present', markedAt: '2026-08-23T07:15:00.000Z' },
+  { id: 'att-9a1-prev-05', classId: 'class-9a1', studentId: 'hs-05', studentCode: 'HS905', studentName: 'Hoàng Mai Phương', date: '2026-08-23', sessionName: 'Tiết 3-4: Hình học 9', status: 'present', markedAt: '2026-08-23T07:15:00.000Z' },
+  { id: 'att-9a1-prev-06', classId: 'class-9a1', studentId: 'hs-06', studentCode: 'HS906', studentName: 'Vũ Đức Thành', date: '2026-08-23', sessionName: 'Tiết 3-4: Hình học 9', status: 'present', markedAt: '2026-08-23T07:15:00.000Z' },
+  { id: 'att-9a1-prev-07', classId: 'class-9a1', studentId: 'hs-07', studentCode: 'HS907', studentName: 'Đặng Thùy Dương', date: '2026-08-23', sessionName: 'Tiết 3-4: Hình học 9', status: 'present', markedAt: '2026-08-23T07:15:00.000Z' },
+  { id: 'att-9a1-prev-08', classId: 'class-9a1', studentId: 'hs-08', studentCode: 'HS908', studentName: 'Bùi Gia Huy', date: '2026-08-23', sessionName: 'Tiết 3-4: Hình học 9', status: 'late', note: 'Muộn 5 phút', markedAt: '2026-08-23T07:20:00.000Z' },
+  { id: 'att-9a1-prev-09', classId: 'class-9a1', studentId: 'hs-09', studentCode: 'HS909', studentName: 'Ngô Khánh Linh', date: '2026-08-23', sessionName: 'Tiết 3-4: Hình học 9', status: 'present', markedAt: '2026-08-23T07:15:00.000Z' },
+  { id: 'att-9a1-prev-10', classId: 'class-9a1', studentId: 'hs-10', studentCode: 'HS910', studentName: 'Đỗ Hữu Phước', date: '2026-08-23', sessionName: 'Tiết 3-4: Hình học 9', status: 'unexcused_absence', note: 'Không có phép', markedAt: '2026-08-23T07:15:00.000Z' },
+  { id: 'att-9a1-prev-11', classId: 'class-9a1', studentId: 'hs-11', studentCode: 'HS911', studentName: 'Cao Ngọc Diệp', date: '2026-08-23', sessionName: 'Tiết 3-4: Hình học 9', status: 'present', markedAt: '2026-08-23T07:15:00.000Z' },
+  { id: 'att-9a1-prev-12', classId: 'class-9a1', studentId: 'hs-12', studentCode: 'HS912', studentName: 'Lý Quốc Bảo', date: '2026-08-23', sessionName: 'Tiết 3-4: Hình học 9', status: 'present', markedAt: '2026-08-23T07:15:00.000Z' }
+];
+
+export const INITIAL_BONUS_POINTS: BonusPointRecord[] = [
+  {
+    id: 'bp-01',
+    classId: 'class-9a1',
+    studentId: 'hs-01',
+    studentCode: 'HS901',
+    studentName: 'Trần Bảo Nam',
+    points: 2,
+    reason: 'Giải bài toán thực tế nâng cao cách giải sáng tạo',
+    category: 'academic',
+    date: '2026-08-25',
+    createdAt: '2026-08-25T08:30:00.000Z'
+  },
+  {
+    id: 'bp-02',
+    classId: 'class-9a1',
+    studentId: 'hs-02',
+    studentCode: 'HS902',
+    studentName: 'Lê Quỳnh Anh',
+    points: 1,
+    reason: 'Phát biểu xây dựng bài sôi nổi và chính xác',
+    category: 'attitude',
+    date: '2026-08-25',
+    createdAt: '2026-08-25T08:00:00.000Z'
+  },
+  {
+    id: 'bp-03',
+    classId: 'class-9a1',
+    studentId: 'hs-03',
+    studentCode: 'HS903',
+    studentName: 'Nguyễn Đăng Khoa',
+    points: 3,
+    reason: 'Hoàn thành bộ 20 câu trắc nghiệm chuyên đề đạt 100% trong 15 phút',
+    category: 'academic',
+    date: '2026-08-24',
+    createdAt: '2026-08-24T10:00:00.000Z'
+  },
+  {
+    id: 'bp-04',
+    classId: 'class-9a1',
+    studentId: 'hs-05',
+    studentCode: 'HS905',
+    studentName: 'Hoàng Mai Phương',
+    points: 2,
+    reason: 'Vở ghi chép sơ đồ tư duy Toán 9 đẹp và khoa học nhất lớp',
+    category: 'academic',
+    date: '2026-08-23',
+    createdAt: '2026-08-23T09:15:00.000Z'
+  },
+  {
+    id: 'bp-05',
+    classId: 'class-9a1',
+    studentId: 'hs-06',
+    studentCode: 'HS906',
+    studentName: 'Vũ Đức Thành',
+    points: 1,
+    reason: 'Tích cực hỗ trợ bạn cùng bàn sửa bài tập hình học',
+    category: 'activity',
+    date: '2026-08-23',
+    createdAt: '2026-08-23T09:30:00.000Z'
+  },
+  {
+    id: 'bp-06',
+    classId: 'class-9a1',
+    studentId: 'hs-01',
+    studentCode: 'HS901',
+    studentName: 'Trần Bảo Nam',
+    points: 1,
+    reason: 'Đúng giờ và chuẩn bị bài đầy đủ 5 buổi liên tiếp',
+    category: 'punctuality',
+    date: '2026-08-22',
+    createdAt: '2026-08-22T07:10:00.000Z'
+  }
+];
+
+export const INITIAL_MONTHLY_REPORTS: MonthlyStudentReport[] = [
+  {
+    id: 'rep-duy-anh-08-2026',
+    classId: 'class-9a1',
+    studentId: 'hs-00',
+    monthYear: '8/2026',
+    teacherName: 'GV. Nguyễn Thanh Thúy',
+    teacherPhone: '0978783058',
+    studentName: 'Duy Anh',
+    className: 'Lớp 9',
+    studentPhone: '0987873058',
+    includeFee: false,
+    feePerSession: 120000,
+    sessionCount: 12,
+    totalHours: 26.6,
+    totalFee: undefined,
+    bankName: 'Techcombank',
+    bankAccount: '0978783058',
+    bankAccountName: 'NGUYEN THANH THUY',
+    sessionDates: ['04/08', '07/08', '07/08', '09/08', '12/08', '13/08', '17/08', '18/08', '21/08', '24/08', '26/08', '28/08'],
+    generalComment: `+ Chưa chủ động trong quá trình học, thường xuyên thiếu BTVN, trong giờ học hay sao nhãng, nói chuyện riêng, không ôn bài về nhà.\n+ Trình bày bài chưa chỉn chu, làm ẩu.`,
+    algebraComment: `+ Tư duy số học tốt, nắm được cách giải hệ phương trình, bài toán liên quan.\n+ Thường xuyên sai các lỗi nhỏ vặt trong tính toán.`,
+    geometryComment: `+ Giải được các bài toán lượng giác cơ bản\n+ Cần ôn tập lại các kiến thức liên quan đến tam giác đồng dạng, song song, các đường đặc biệt trong tam giác.`,
+    roadmapAlgebra: `Hoàn thành chuyên đề hệ phương trình và bất phương trình`,
+    roadmapGeometry: `Hoàn thành chuyên đề hệ thức lượng, mở đầu về đường tròn`,
+    scheduleItems: [
+      'Chiều thứ 4: 16h - 18h',
+      'Chiều thứ 7: 13h - 15h',
+      'Chiều chủ nhật: 13h - 15h'
+    ],
+    feeDetails: [
+      'Học phí cơ bản: 120k/buổi',
+      'Học phí bổ trợ tối: 30k/buổi'
+    ],
+    footerNote: 'Phụ huynh vui lòng kiểm tra thông tin học phí và lịch học. Cháu cảm ơn ạ.',
+    createdAt: '2026-08-31T17:00:00.000Z'
+  }
+];
+
+export const INITIAL_SESSIONS: CalendarSession[] = [
+  {
+    id: 'sess-01',
+    classId: 'class-9a1',
+    className: 'Toán 9A1 - Kiểm tra định kỳ 45 phút',
+    subject: 'Toán học',
+    date: '2026-09-17',
+    startTime: '08:00',
+    endTime: '09:30',
+    room: 'Phòng 201',
+    color: 'indigo',
+    notes: 'Kiểm tra khảo sát 45 phút đầu năm học'
+  },
+  {
+    id: 'sess-02',
+    classId: 'class-9a2',
+    className: 'Toán 9A2 - Luyện tập hàm số',
+    subject: 'Đại số 9',
+    date: '2026-09-18',
+    startTime: '14:00',
+    endTime: '15:30',
+    room: 'Phòng 102',
+    color: 'indigo',
+    notes: 'Ôn tập đồ thị và phương trình bậc nhất'
+  },
+  {
+    id: 'sess-03',
+    classId: 'class-9a1',
+    className: 'Toán 9A1 - Bất đẳng thức Cô-si',
+    subject: 'Đại số 9',
+    date: '2026-09-21',
+    startTime: '07:00',
+    endTime: '08:30',
+    room: 'Phòng 201',
+    color: 'indigo',
+    notes: 'Chuyên đề bất đẳng thức nâng cao'
+  },
+  {
+    id: 'sess-04',
+    classId: 'class-9a2',
+    className: 'Toán 9A2 - Căn thức bậc hai & Rút gọn',
+    subject: 'Đại số 9',
+    date: '2026-09-22',
+    startTime: '09:00',
+    endTime: '10:30',
+    room: 'Phòng 102',
+    color: 'amber',
+    notes: 'Rèn luyện kỹ năng biến đổi và rút gọn'
+  },
+  {
+    id: 'sess-05',
+    classId: 'class-9a1',
+    className: 'Toán 9A1 - Hệ thức lượng tam giác',
+    subject: 'Hình học 9',
+    date: '2026-09-24',
+    startTime: '15:00',
+    endTime: '16:30',
+    room: 'Phòng 201',
+    color: 'indigo',
+    notes: 'Hệ thức lượng trong tam giác vuông'
+  },
+  {
+    id: 'sess-06',
+    classId: 'class-8a1',
+    className: 'Toán 8A1 - Hằng đẳng thức đáng nhớ',
+    subject: 'Toán học 8',
+    date: '2026-09-21',
+    startTime: '15:30',
+    endTime: '17:00',
+    room: 'Phòng 203',
+    color: 'teal',
+    notes: 'Vận dụng 7 hằng đẳng thức vào phân tích đa thức'
+  },
+  {
+    id: 'sess-07',
+    classId: 'class-9a3',
+    className: 'Toán 9A3 - Cực trị Hình học & Bất đẳng thức',
+    subject: 'Toán nâng cao',
+    date: '2026-09-20',
+    startTime: '08:00',
+    endTime: '10:00',
+    room: 'Phòng 201',
+    color: 'rose',
+    notes: 'Kỹ thuật dồn biến và Cauchy-Schwarz trong hình học'
+  }
+];
+
+
+export const INITIAL_NOTIFICATIONS: TeacherNotification[] = [
+  {
+    id: 'notif-01',
+    title: 'Học sinh vừa nộp bài thi',
+    message: 'Em Trần Bảo Nam (Toán 9A1) vừa nộp bài "Khảo sát chất lượng Toán 9" với điểm số 9.5/10.',
+    type: 'submission',
+    time: '10 phút trước',
+    read: false,
+    actionUrl: '/teacher/exams',
+    senderName: 'Trần Bảo Nam',
+    avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=150',
+    createdAt: '2026-09-17T09:15:00.000Z'
+  },
+  {
+    id: 'notif-02',
+    title: 'Hệ thống đã tự động chấm bài nộp mới',
+    message: 'Đề thi "Khảo sát chất lượng Toán 9" vừa có thêm học sinh hoàn thành và được chấm điểm tự động 100%.',
+    type: 'submission',
+    time: '35 phút trước',
+    read: false,
+    actionUrl: '/teacher/exams',
+    createdAt: '2026-09-17T08:50:00.000Z'
+  },
+  {
+    id: 'notif-03',
+    title: 'Nhắc lịch ca dạy sắp tới',
+    message: 'Ca học Toán 9A1 diễn ra vào lúc 07:00 ngày mai tại Phòng 201. Hãy chuẩn bị phiếu bài tập.',
+    type: 'schedule',
+    time: '2 giờ trước',
+    read: false,
+    actionUrl: '/teacher/calendar',
+    createdAt: '2026-09-17T07:20:00.000Z'
+  },
+  {
+    id: 'notif-04',
+    title: 'Xác nhận đóng học phí',
+    message: 'Phụ huynh học sinh Nguyễn Minh Khôi (Toán 9A2) đã hoàn thành đóng học phí tháng 09/2026: 1.200.000đ.',
+    type: 'fee',
+    time: 'Hôm nay, 08:15',
+    read: false,
+    actionUrl: '/teacher/classes/class-9a2',
+    senderName: 'Phụ huynh Minh Khôi',
+    createdAt: '2026-09-17T08:15:00.000Z'
+  },
+  {
+    id: 'notif-05',
+    title: 'Tin nhắn từ phụ huynh',
+    message: 'Mẹ em Lê Thu Trang: "Thưa thầy, cháu Trang tiến bộ rõ rệt ở phần căn thức, gia đình cảm ơn thầy nhiều ạ!"',
+    type: 'message',
+    time: 'Hôm qua, 18:40',
+    read: true,
+    actionUrl: '/teacher/classes/class-9a2',
+    senderName: 'PH Lê Thu Trang',
+    createdAt: '2026-09-16T18:40:00.000Z'
+  },
+  {
+    id: 'notif-06',
+    title: 'Đơn xin nghỉ học có phép',
+    message: 'Em Phạm Đức Anh (Toán 9A1) gửi đơn xin phép nghỉ ca học ngày 18/09 do đi thi học sinh giỏi.',
+    type: 'attendance',
+    time: 'Hôm qua, 14:20',
+    read: true,
+    actionUrl: '/teacher/classes/class-9a1',
+    senderName: 'Phạm Đức Anh',
+    createdAt: '2026-09-16T14:20:00.000Z'
+  },
+  {
+    id: 'notif-07',
+    title: 'Cập nhật hệ thống Ako Edu',
+    message: 'Tính năng Thời khóa biểu & Lịch dạy đã được nâng cấp. Bạn có thể xem lịch dạy theo tuần và tạo ca học nhanh chóng.',
+    type: 'system',
+    time: '2 ngày trước',
+    read: true,
+    actionUrl: '/teacher/calendar',
+    createdAt: '2026-09-15T10:00:00.000Z'
+  }
+];

@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix Remix Remix Remix Remix Ako",
+  "description": "Nền tảng kiểm tra–đánh giá, nhập đề AI từ Word/PDF, tạo bài thi trực tuyến, chấm tự luận thông minh và xây dựng thương hiệu số cá nhân dành cho giáo viên Việt Nam.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

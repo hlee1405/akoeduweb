@@ -1,0 +1,243 @@
+@import "tailwindcss";
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Theme Color Tokens */
+  --color-th-bg: var(--th-bg);
+  --color-th-surface: var(--th-surface);
+  --color-th-surface-dim: var(--th-surface-dim);
+  --color-th-surface-hover: var(--th-surface-hover);
+  --color-th-text: var(--th-text);
+  --color-th-text-muted: var(--th-text-muted);
+  --color-th-primary: var(--th-primary);
+  --color-th-primary-hover: var(--th-primary-hover);
+  --color-th-primary-light: var(--th-primary-light);
+  --color-th-border: var(--th-border);
+
+  /* Compatibility aliases mapped to unified design tokens */
+  --color-cream: var(--th-bg);
+  --color-cream-surface: var(--th-surface);
+  --color-cream-dim: var(--th-surface-dim);
+  --color-cream-dark: var(--th-surface-hover);
+
+  --color-mocha: var(--th-text);
+  --color-mocha-dark: var(--th-sidebar-active);
+  --color-mocha-espresso: var(--th-sidebar-bg);
+  --color-mocha-card: var(--th-sidebar-hover);
+  --color-mocha-border: var(--th-sidebar-border);
+
+  --color-latte: var(--th-text-muted);
+  --color-latte-light: var(--th-sidebar-text-muted);
+  --color-latte-subtle: var(--th-border);
+
+  --color-terracotta: var(--th-primary);
+  --color-terracotta-hover: var(--th-primary-hover);
+  --color-terracotta-active: var(--th-primary-hover);
+  --color-terracotta-light: var(--th-primary-light);
+  --color-terracotta-subtle: var(--th-surface-dim);
+
+  --color-blush: var(--th-badge-bg);
+  --color-blushborder: var(--th-border);
+  --color-blush-hover: var(--th-primary-light);
+}
+
+:root {
+  /* Default Classic Educational Blue Theme */
+  --th-bg: #F8FAFC;
+  --th-surface: #FFFFFF;
+  --th-surface-dim: #F1F5F9;
+  --th-surface-hover: #E2E8F0;
+  --th-text: #0F172A;
+  --th-text-muted: #64748B;
+  --th-text-inverse: #FFFFFF;
+  --th-primary: #2563EB;
+  --th-primary-hover: #1D4ED8;
+  --th-primary-light: #EFF6FF;
+  --th-border: #E2E8F0;
+  --th-border-subtle: #F1F5F9;
+  --th-badge-bg: #EFF6FF;
+  --th-badge-text: #2563EB;
+  --th-badge-border: #BFDBFE;
+  --th-sidebar-bg: #FFFFFF;
+  --th-sidebar-text: #0F172A;
+  --th-sidebar-text-muted: #64748B;
+  --th-sidebar-active: #EFF6FF;
+  --th-sidebar-hover: #F8FAFC;
+  --th-sidebar-border: #E2E8F0;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+*,
+html,
+body {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  background-color: var(--th-bg);
+  color: var(--th-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* =========================================================
+   SYSTEM-WIDE UNIFIED COLOR HARMONIZATION
+   Guarantees any legacy hardcoded tone adapts to the unified theme
+   ========================================================= */
+
+[data-theme] {
+  background-color: var(--th-bg);
+  color: var(--th-text);
+}
+
+/* Legacy cream/warm surfaces -> clean unified surfaces */
+[data-theme] .bg-\[\#F9F5F0\],
+[data-theme] .bg-cream {
+  background-color: var(--th-bg) !important;
+}
+
+[data-theme] .bg-\[\#FFFDF9\],
+[data-theme] .bg-cream-surface {
+  background-color: var(--th-surface) !important;
+}
+
+[data-theme] .bg-\[\#F5F0EA\],
+[data-theme] .bg-cream-dim {
+  background-color: var(--th-surface-dim) !important;
+}
+
+[data-theme] .bg-\[\#EDE6DE\],
+[data-theme] .bg-\[\#ECE5DC\],
+[data-theme] .bg-cream-dark {
+  background-color: var(--th-surface-hover) !important;
+}
+
+/* Typography across workspace */
+[data-theme] .text-\[\#5C453C\],
+[data-theme] .text-mocha {
+  color: var(--th-text) !important;
+}
+
+[data-theme] .text-\[\#9A8A85\],
+[data-theme] .text-latte {
+  color: var(--th-text-muted) !important;
+}
+
+/* Borders across workspace */
+[data-theme] .border-\[\#EFE3DD\],
+[data-theme] .border-\[\#E5D3CC\],
+[data-theme] .border-blushborder {
+  border-color: var(--th-border) !important;
+}
+
+/* Primary Accents (Buttons, Badges, Links) */
+[data-theme] .bg-\[\#B68176\],
+[data-theme] .bg-terracotta {
+  background-color: var(--th-primary) !important;
+}
+
+[data-theme] .hover\:bg-\[\#A37066\]:hover,
+[data-theme] .hover\:bg-terracotta-hover:hover {
+  background-color: var(--th-primary-hover) !important;
+}
+
+[data-theme] .text-\[\#B68176\],
+[data-theme] .text-terracotta {
+  color: var(--th-primary) !important;
+}
+
+[data-theme] .border-\[\#B68176\] {
+  border-color: var(--th-primary) !important;
+}
+
+/* Light Badges & Highlights */
+[data-theme] .bg-\[\#F9EAEA\],
+[data-theme] .bg-\[\#F6EEEB\],
+[data-theme] .bg-\[\#FCF8F6\],
+[data-theme] .bg-blush {
+  background-color: var(--th-badge-bg) !important;
+}
+
+[data-theme] .border-\[\#F0D5D0\],
+[data-theme] .border-\[\#E8C4BE\] {
+  border-color: var(--th-badge-border) !important;
+}
+
+[data-theme] .text-\[\#E8B4AA\] {
+  color: var(--th-badge-text) !important;
+}
+
+/* Sidebar Elements */
+[data-theme] .bg-\[\#2D211C\],
+[data-theme] .bg-mocha-espresso {
+  background-color: var(--th-sidebar-bg) !important;
+}
+
+[data-theme] .bg-\[\#43322B\],
+[data-theme] .bg-mocha-dark {
+  background-color: var(--th-sidebar-active) !important;
+}
+
+[data-theme] .bg-\[\#3A2B25\],
+[data-theme] .bg-mocha-card {
+  background-color: var(--th-sidebar-hover) !important;
+}
+
+[data-theme] .hover\:bg-\[\#3A2B25\]:hover {
+  background-color: var(--th-sidebar-hover) !important;
+}
+
+[data-theme] .hover\:bg-\[\#43322B\]:hover {
+  background-color: var(--th-sidebar-active) !important;
+}
+
+[data-theme] .border-\[\#44332C\],
+[data-theme] .border-\[\#4A3831\],
+[data-theme] .border-mocha-border {
+  border-color: var(--th-sidebar-border) !important;
+}
+
+[data-theme] .text-\[\#C4B9B4\],
+[data-theme] .text-latte-light {
+  color: var(--th-sidebar-text-muted) !important;
+}
+
+/* Custom scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--th-border);
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--th-primary);
+}
+
+/* Custom focus ring */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--th-primary) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18) !important;
+}

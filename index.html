@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function() {
+        try {
+          var _f = window.fetch;
+          Object.defineProperty(window, 'fetch', {
+            configurable: true,
+            enumerable: true,
+            get: function() {
+              return _f;
+            },
+            set: function(fn) {
+              _f = fn;
+            }
+          });
+        } catch (e) {
+          try {
+            if (window.Window && window.Window.prototype) {
+              var _pf = window.Window.prototype.fetch;
+              Object.defineProperty(window.Window.prototype, 'fetch', {
+                configurable: true,
+                enumerable: true,
+                get: function() {
+                  return _f || _pf;
+                },
+                set: function(fn) {
+                  _f = fn;
+                }
+              });
+            }
+          } catch (e2) {}
+        }
+        window.addEventListener('error', function(event) {
+          if (event && event.message && event.message.indexOf('Cannot set property fetch of') !== -1) {
+            event.preventDefault();
+          }
+        });
+      })();
+    </script>
+    <title>Ako - Nền tảng kiểm tra & hồ sơ số giáo viên</title>
+    <meta name="description" content="Ako - Nền tảng kiểm tra–đánh giá và xây dựng thương hiệu số dành cho giáo viên." />
+    <meta name="theme-color" content="#2563EB" />
+    <meta name="color-scheme" content="light" />
+    <meta property="og:title" content="Ako - Nền tảng kiểm tra & hồ sơ số giáo viên" />
+    <meta property="og:description" content="Nền tảng kiểm tra–đánh giá và xây dựng thương hiệu số dành cho giáo viên." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
