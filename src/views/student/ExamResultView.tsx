@@ -91,7 +91,7 @@ export const ExamResultView: React.FC = () => {
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Kết quả bài thi trực tuyến</span>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{exam.title}</h1>
             <p className="text-xs text-slate-500 mt-1">
-              Thí sinh: <strong>{submission.studentName}</strong> • {submission.studentCode && `SBD: ${submission.studentCode}`}
+              Thí sinh: <strong>{submission.studentName}</strong>
               {submission.isLate && (
                 <span className="ml-2 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 font-bold text-[10px]">
                   Nộp muộn

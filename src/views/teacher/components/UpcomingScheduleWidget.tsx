@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar as CalendarIcon, Clock, MapPin, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, ChevronRight } from 'lucide-react';
 import { store } from '../../../services/store';
 import { CalendarSession } from '../../../types';
 import { useTheme } from '../../../context/ThemeContext';
@@ -44,6 +44,33 @@ export const UpcomingScheduleWidget: React.FC = () => {
     const monthNum = String(d.getMonth() + 1).padStart(2, '0');
     const isToday = dateStr === anchorDate;
     return { shortDay, dayNum, monthNum, isToday };
+  };
+
+  // Check if session is currently ongoing
+  const isSessionOngoing = (session: CalendarSession) => {
+    if ((session as any).status === 'ongoing') return true;
+
+    const nowTime = new Date();
+    const curYear = nowTime.getFullYear();
+    const curMonth = String(nowTime.getMonth() + 1).padStart(2, '0');
+    const curDate = String(nowTime.getDate()).padStart(2, '0');
+    const actualToday = `${curYear}-${curMonth}-${curDate}`;
+
+    const isToday = session.date === actualToday || session.date === anchorDate;
+    const curMinutes = nowTime.getHours() * 60 + nowTime.getMinutes();
+
+    if (isToday && session.startTime && session.endTime) {
+      const [startH, startM] = session.startTime.split(':').map(Number);
+      const [endH, endM] = session.endTime.split(':').map(Number);
+      const startMinutes = (startH || 0) * 60 + (startM || 0);
+      const endMinutes = (endH || 0) * 60 + (endM || 0);
+
+      if (curMinutes >= startMinutes && curMinutes <= endMinutes) {
+        return true;
+      }
+    }
+
+    return false;
   };
 
   return (
@@ -95,12 +122,17 @@ export const UpcomingScheduleWidget: React.FC = () => {
         ) : (
           displaySessions.map((session, index) => {
             const { shortDay, dayNum, monthNum } = formatSessionDate(session.date);
+            const isOngoing = isSessionOngoing(session);
 
             return (
               <div
                 key={session.id || index}
                 onClick={() => navigate(`/teacher/calendar?date=${session.date}`)}
-                className="p-3 rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50/80 hover:border-blue-300/80 hover:shadow-xs transition-all flex items-center gap-3 group cursor-pointer"
+                className={`p-3 rounded-xl border bg-white hover:bg-slate-50/80 hover:shadow-xs transition-all flex items-center gap-3 group cursor-pointer ${
+                  isOngoing
+                    ? 'border-emerald-300 ring-1 ring-emerald-400/20 shadow-2xs'
+                    : 'border-slate-200/80 hover:border-blue-300/80'
+                }`}
               >
                 {/* Date Badge */}
                 <div className="shrink-0 w-11 h-13 rounded-lg bg-white border border-slate-200 flex flex-col items-center justify-center text-center shadow-2xs group-hover:border-blue-300/80 transition-colors relative">
@@ -120,33 +152,29 @@ export const UpcomingScheduleWidget: React.FC = () => {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1 mb-1">
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
                     <h4
                       className="text-xs sm:text-sm font-bold text-slate-800 truncate group-hover:text-blue-600 transition-colors"
                       title={session.className}
                     >
                       {session.className}
                     </h4>
-                  </div>
 
-                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-slate-500">
-                    <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                      <Clock className="w-3 h-3 text-blue-500" />
-                      <span>{session.startTime} - {session.endTime}</span>
-                    </span>
-                    {session.room && (
-                      <span className="inline-flex items-center gap-1 font-medium text-slate-400">
-                        <MapPin className="w-3 h-3" />
-                        <span>{session.room}</span>
+                    {isOngoing && (
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs shrink-0">
+                        <span className="relative flex h-1.5 w-1.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                        </span>
+                        <span>Đang diễn ra</span>
                       </span>
                     )}
                   </div>
 
-                  {session.notes && (
-                    <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                      {session.notes}
-                    </p>
-                  )}
+                  <div className="flex items-center gap-1 font-semibold text-xs text-slate-600">
+                    <Clock className="w-3 h-3 text-blue-500" />
+                    <span>{session.startTime} - {session.endTime}</span>
+                  </div>
                 </div>
               </div>
             );

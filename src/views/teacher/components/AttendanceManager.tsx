@@ -19,8 +19,9 @@ interface AttendanceManagerProps {
   students: Student[];
   initialDate?: string;
   initialSessionName?: string;
-  onBonusClick?: (student: Student) => void;
   onGoToSchedule?: () => void;
+  onEndSession?: (dateStr: string, sessionName: string) => void;
+  onClose?: () => void;
 }
 
 const DAYS_OF_WEEK_NAMES = ['Chủ Nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
@@ -30,8 +31,9 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
   students,
   initialDate,
   initialSessionName,
-  onBonusClick,
-  onGoToSchedule
+  onGoToSchedule,
+  onEndSession,
+  onClose
 }) => {
   const { success, info } = useToast();
 
@@ -208,7 +210,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
   const handleExportCSV = () => {
     const rows = [
-      ['Mã HS', 'Họ và tên', 'Ngày', 'Tiết/Ca học', 'Trạng thái', 'Ghi chú'],
+      ['Họ và tên', 'Ngày', 'Tiết/Ca học', 'Trạng thái', 'Ghi chú'],
       ...students.map((s) => {
         const item = attendanceMap[s.id] || { status: 'present', note: '' };
         const statusText =
@@ -219,7 +221,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             : item.status === 'excused_absence'
             ? 'Nghỉ có phép'
             : 'Vắng không phép';
-        return [s.code, s.fullName, selectedDate, sessionName, statusText, item.note];
+        return [s.fullName, selectedDate, sessionName, statusText, item.note];
       })
     ];
 
@@ -415,7 +417,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         )}
       </div>
 
-      {/* 3. ACTION BUTTONS (Tất cả có mặt, Xuất CSV, Lưu điểm danh) */}
+      {/* 3. ACTION BUTTONS (Tất cả có mặt, Xuất CSV, Lưu điểm danh, Kết thúc buổi học) */}
       <div className="flex items-center justify-end gap-2.5 flex-wrap">
         <button
           type="button"
@@ -491,7 +493,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             <thead>
               <tr className="bg-[#F5F0EA] border-b border-[#EFE3DD] text-[#5C453C] font-bold uppercase tracking-wider text-[11px]">
                 <th className="py-3 pl-4 w-12 text-center">STT</th>
-                <th className="py-3 w-24">Mã HS</th>
                 <th className="py-3 min-w-[180px]">Họ và tên</th>
                 <th className="py-3 min-w-[320px] text-center">Trạng thái điểm danh</th>
                 <th className="py-3 pr-4 min-w-[200px]">Ghi chú & Lý do</th>
@@ -500,7 +501,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             <tbody className="divide-y divide-[#EFE3DD]">
               {filteredStudents.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-[#9A8A85]">
+                  <td colSpan={4} className="py-12 text-center text-[#9A8A85]">
                     <div className="max-w-xs mx-auto space-y-2">
                       <p className="text-sm font-semibold text-[#5C453C]">
                         Không có học sinh nào{' '}
@@ -530,7 +531,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
                 return (
                   <tr key={st.id} className="hover:bg-[#F5F0EA]/60 transition-colors">
                     <td className="py-3 pl-4 text-center text-[#9A8A85] font-semibold">{idx + 1}</td>
-                    <td className="py-3 font-mono font-bold text-[#B68176]">{st.code}</td>
                     <td className="py-3">
                       <div className="flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-[#F9EAEA] text-[#B68176] font-extrabold text-xs flex items-center justify-center shrink-0 border border-[#F0D5D0]">

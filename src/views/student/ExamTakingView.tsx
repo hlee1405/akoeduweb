@@ -470,35 +470,19 @@ export const ExamTakingView: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">
-                    {exam.settings?.requireStudentInfo?.studentCode ? 'Mã HS / SBD *' : 'Mã HS / SBD'}
-                  </label>
-                  <input
-                    type="text"
-                    required={exam.settings?.requireStudentInfo?.studentCode}
-                    placeholder="HS-091"
-                    value={studentCode}
-                    onChange={(e) => setStudentCode(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl font-mono text-xs focus:bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-semibold text-slate-700 block mb-1">Lớp học *</label>
-                  <select
-                    value={selectedClassId}
-                    required={isAssignedClassesOnly}
-                    onChange={(e) => setSelectedClassId(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:bg-white font-medium"
-                  >
-                    {!isAssignedClassesOnly && <option value="">(Tự do / Khách)</option>}
-                    {filteredClasses.map((c) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Lớp học *</label>
+                <select
+                  value={selectedClassId}
+                  required={isAssignedClassesOnly}
+                  onChange={(e) => setSelectedClassId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs focus:bg-white font-medium"
+                >
+                  {!isAssignedClassesOnly && <option value="">(Tự do / Khách)</option>}
+                  {filteredClasses.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Optional Phone field */}

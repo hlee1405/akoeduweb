@@ -120,10 +120,13 @@ export interface Student {
   phone?: string;
   classId: string;
   avatarUrl?: string;
-  gender?: 'male' | 'female' | 'other';
   birthDate?: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'pending';
   joinedAt: string;
+  // QR & Join Request metadata
+  requestSource?: 'qr' | 'link' | 'manual';
+  requestedAt?: string;
+  requestNotes?: string;
   // Parent information (Thông tin phụ huynh mở rộng)
   parentName?: string;
   parentPhone?: string;
@@ -179,6 +182,7 @@ export interface ClassTeachingSession {
   assignedExamIds?: string[];
   attendanceDone?: boolean;
   notes?: string;
+  status?: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
 }
 
 export interface CalendarSession {
@@ -200,12 +204,17 @@ export interface CalendarSession {
 
 export interface ClassFeeConfig {
   enabled: boolean; // Optional: whether tuition is tracked / shown
+  feeType?: 'per_session' | 'fixed_period'; // 'per_session' (theo buổi) | 'fixed_period' (cố định theo kỳ)
   feePerSession?: number; // e.g. 120000
+  fixedFeeAmount?: number; // e.g. 1500000 (cho hình thức thu cố định)
   supplementaryFeePerSession?: number; // e.g. 30000
   feeNotes?: string; // e.g. "Học phí cơ bản: 120k/buổi"
   bankCode?: string; // e.g. "Techcombank"
   bankAccount?: string; // e.g. "0978783058"
   bankAccountName?: string; // e.g. "NGUYEN THANH THUY"
+  qrTransferContent?: string; // e.g. "HP [Tên] [Kỳ]"
+  customQrImage?: string; // Tải ảnh QR có sẵn lên (Base64 hoặc URL)
+  qrMode?: 'auto_vietqr' | 'custom_image';
 }
 
 export interface ClassRoom {
@@ -217,7 +226,7 @@ export interface ClassRoom {
   description: string;
   joinCode: string;
   allowSelfJoin: boolean;
-  status: 'active' | 'archived';
+  status?: 'active';
   createdAt: string;
   schedule?: ClassScheduleItem[];
   feeConfig?: ClassFeeConfig;
@@ -396,7 +405,7 @@ export interface ActivityLog {
   title: string;
   description: string;
   timestamp: string;
-  type: 'exam_published' | 'submission' | 'class_created' | 'question_imported' | 'graded';
+  type: 'exam_published' | 'submission' | 'class_created' | 'question_imported' | 'graded' | 'student_added' | 'student_removed' | 'student_pending';
   meta?: Record<string, any>;
 }
 
@@ -443,25 +452,51 @@ export interface MonthlyStudentReport {
   className: string; // e.g. "Lớp 9"
   studentPhone?: string; // e.g. "0987873058"
   
+  // Period & custom titles
+  startDate?: string; // e.g. "01/08/2026"
+  endDate?: string; // e.g. "31/08/2026"
+  customTitle?: string; // e.g. "HỌC PHÍ THÁNG 8/2026"
+  templateStyle?: 'template1' | 'template2';
+
   // Optional Fee Details
-  includeFee: boolean; // default false
-  feePerSession?: number; // e.g. 120000
-  sessionCount: number; // e.g. 12
-  totalHours: number; // e.g. 26.6
-  totalFee?: number; // e.g. 1320000
+  includeFee: boolean; // default true/false
+  feeType?: 'per_session' | 'fixed_period'; // 'per_session' (theo buổi) | 'fixed_period' (cố định kỳ)
+  feePerSession?: number; // e.g. 200000
+  fixedFeeAmount?: number; // e.g. 1500000 (học phí trọn gói theo kỳ)
+  sessionCount: number; // e.g. 8
+  totalHours: number; // e.g. 14.9
+  discountFee?: number; // Giảm học phí (e.g. 0)
+  surchargeFee?: number; // Phụ thu (e.g. 0)
+  totalFee?: number; // e.g. 1600000
   
+  // Field visibility toggles for live voucher rendering
+  showStudentName?: boolean;
+  showStudentPhone?: boolean;
+  showClassName?: boolean;
+  showFeePerSession?: boolean;
+  showSessionCount?: boolean;
+  showTotalHours?: boolean;
+  showSessionDates?: boolean;
+  showDiscount?: boolean;
+  showSurcharge?: boolean;
+  showQrCode?: boolean;
+
   // Bank details for VietQR (if includeFee is true)
+  bankCode?: string; // e.g. "TCB"
   bankName?: string; // e.g. "Techcombank"
   bankAccount?: string; // e.g. "0978783058"
   bankAccountName?: string; // e.g. "NGUYEN THANH THUY"
+  qrTransferContent?: string; // e.g. "HP Duy Anh T8-2026"
+  customQrImage?: string; // Tải ảnh QR có sẵn lên (Base64 hoặc URL)
+  qrMode?: 'auto_vietqr' | 'custom_image';
   
   // Study Days in month
-  sessionDates: string[]; // e.g. ['04/08', '07/08', '07/08', '09/08', '12/08', '13/08', '17/08', '18/08', '21/08', '24/08', '26/08', '28/08']
+  sessionDates: string[]; // e.g. ['07/08', '10/08', '12/08', '21/08', '23/08', '26/08', '30/08', '31/08']
   
   // Assessment sections (Teacher writes manually, NO AI required)
-  generalComment: string; // Nhận xét của giáo viên
-  algebraComment?: string; // Nhận xét môn/phân môn 1 (ví dụ: Đại số - tuỳ chọn)
-  geometryComment?: string; // Nhận xét môn/phân môn 2 (ví dụ: Hình học - tuỳ chọn)
+  generalComment: string; // Nhận xét của giáo viên (Tổng quan)
+  algebraComment?: string; // Nhận xét môn/phân môn 1 (ví dụ: Đại số)
+  geometryComment?: string; // Nhận xét môn/phân môn 2 (ví dụ: Hình học)
   otherComment?: string; // Nhận xét bổ sung
   
   // Upcoming Roadmap
@@ -473,7 +508,7 @@ export interface MonthlyStudentReport {
   // Schedule and Fee text at bottom
   scheduleItems: string[]; // e.g. ["Chiều thứ 4: 16h - 18h", "Chiều thứ 7: 13h - 15h", "Chiều chủ nhật: 13h - 15h"]
   feeDetails?: string[]; // e.g. ["Học phí cơ bản: 120k/buổi", "Học phí bổ trợ tối: 30k/buổi"]
-  footerNote: string; // e.g. "Phụ huynh vui lòng kiểm tra thông tin học phí và lịch học. Cháu cảm ơn ạ."
+  footerNote: string; // e.g. "Phụ huynh vui lòng kiểm tra thông tin học phí và lịch học."
   createdAt: string;
 }
 
@@ -482,7 +517,7 @@ export interface TeacherNotification {
   title: string;
   message: string;
   time: string; // Display time, e.g. "10 phút trước", "Hôm nay, 08:30"
-  type: 'submission' | 'grading' | 'attendance' | 'schedule' | 'fee' | 'message' | 'system';
+  type: 'submission' | 'grading' | 'attendance' | 'schedule' | 'fee' | 'message' | 'system' | 'class';
   read: boolean;
   actionUrl?: string;
   senderName?: string;

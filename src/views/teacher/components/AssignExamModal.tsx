@@ -722,15 +722,6 @@ export const AssignExamModal: React.FC<AssignExamModalProps> = ({
                       <label className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={requireInfo.studentCode}
-                          onChange={(e) => setRequireInfo({ ...requireInfo, studentCode: e.target.checked })}
-                          className="rounded-sm text-blue-600"
-                        />
-                        <span className="font-medium">Mã học sinh / SBD</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer">
-                        <input
-                          type="checkbox"
                           checked={requireInfo.phone}
                           onChange={(e) => setRequireInfo({ ...requireInfo, phone: e.target.checked })}
                           className="rounded-sm text-blue-600"

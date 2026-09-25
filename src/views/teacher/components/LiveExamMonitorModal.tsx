@@ -147,7 +147,6 @@ export const LiveExamMonitorModal: React.FC<LiveExamMonitorModalProps> = ({
   const filteredStudents = liveStudents.filter((st) => {
     const matchSearch =
       st.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      st.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
       st.className.toLowerCase().includes(searchTerm.toLowerCase());
 
     if (!matchSearch) return false;
@@ -454,7 +453,6 @@ export const LiveExamMonitorModal: React.FC<LiveExamMonitorModalProps> = ({
                             </div>
                             <div>
                               <div className="font-bold text-slate-900">{st.name}</div>
-                              <div className="text-[11px] text-slate-400 font-mono">{st.code}</div>
                             </div>
                           </div>
                         </td>

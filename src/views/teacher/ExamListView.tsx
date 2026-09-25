@@ -345,7 +345,7 @@ export const ExamListView: React.FC = () => {
               <div>
                 <h3 className="font-bold text-slate-800 text-sm">Chưa có ca thi nào phù hợp</h3>
                 <p className="text-xs text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
-                  Chọn một đề thi từ kho lưu trữ bên dưới để cấu hình và phát hành ca thi trực tuyến cho học sinh.
+                  Chọn một đề thi từ kho đề thi bên dưới để cấu hình và phát hành ca thi trực tuyến cho học sinh.
                 </p>
               </div>
               <div className="pt-2">

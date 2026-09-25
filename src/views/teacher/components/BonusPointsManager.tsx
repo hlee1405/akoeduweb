@@ -122,7 +122,6 @@ export const BonusPointsManager: React.FC<BonusPointsManagerProps> = ({
                   <div className="font-bold text-xs text-[#FFFDF9] truncate" title={item.student.fullName}>
                     {item.student.fullName}
                   </div>
-                  <div className="text-[10px] text-[#EFE3DD]/80 font-mono">{item.student.code}</div>
                   <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FFFDF9] text-amber-900 font-extrabold text-xs shadow-2xs">
                     <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
                     <span>+{item.totalPoints} sao</span>
@@ -218,7 +217,6 @@ export const BonusPointsManager: React.FC<BonusPointsManagerProps> = ({
                     <td className="py-3 pl-4">
                       <div>
                         <div className="font-bold text-[#5C453C]">{r.studentName}</div>
-                        <div className="text-[11px] font-mono text-[#B68176]">{r.studentCode}</div>
                       </div>
                     </td>
 

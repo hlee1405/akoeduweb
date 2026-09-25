@@ -213,9 +213,6 @@ export const DashboardClassCards: React.FC<DashboardClassCardsProps> = ({
                   >
                     {cls.name}
                   </h3>
-                  <p className="text-[11px] text-[#9A8A85] font-medium mt-0.5 truncate">
-                    {cls.subject}
-                  </p>
                 </div>
 
                 {/* 3 Metric Pills (Calendar Sessions, Exams/Homework, Students) */}

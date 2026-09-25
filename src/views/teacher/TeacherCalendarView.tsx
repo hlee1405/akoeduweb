@@ -6,7 +6,6 @@ import {
   ChevronRight,
   Plus,
   Clock,
-  MapPin,
   Filter,
   CheckCircle2,
   BookOpen,
@@ -234,7 +233,7 @@ export const TeacherCalendarView: React.FC = () => {
               setModalStartTime('07:00');
               setModalOpen(true);
             }}
-            className="px-4 py-2 bg-[#4338ca] hover:bg-[#3730a3] text-white font-bold text-xs sm:text-sm rounded-xl shadow-xs flex items-center gap-2 transition-all cursor-pointer active:scale-98"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
           >
             <Plus className="w-4 h-4" />
             <span>Thêm ca học</span>
@@ -402,12 +401,6 @@ export const TeacherCalendarView: React.FC = () => {
                                     <h4 className="font-bold text-xs leading-snug line-clamp-2">
                                       {sess.className}
                                     </h4>
-                                    {sess.room && (
-                                      <div className="flex items-center gap-1 text-[11px] opacity-95 mt-1 font-medium">
-                                        <MapPin className="w-3 h-3 shrink-0" />
-                                        <span className="truncate">{sess.room}</span>
-                                      </div>
-                                    )}
                                   </div>
 
                                   <div className="flex items-center justify-between text-[10px] opacity-90 font-medium pt-1">
@@ -572,12 +565,6 @@ export const TeacherCalendarView: React.FC = () => {
                             <Clock className="w-3 h-3" />
                             {sess.startTime} - {sess.endTime}
                           </span>
-                          {sess.room && (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              {sess.room}
-                            </span>
-                          )}
                         </div>
                         {sess.notes && (
                           <p className="text-[11px] opacity-85 mt-1 line-clamp-1 italic">

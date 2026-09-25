@@ -87,13 +87,10 @@ class StoreService {
         const parsed = JSON.parse(raw);
         if (parsed.teacher && Array.isArray(parsed.classes) && Array.isArray(parsed.questions)) {
           const storedSubs = Array.isArray(parsed.submissions) ? parsed.submissions : [];
-          const hasPending = storedSubs.some((s: any) => s.status === 'pending_grading' || s.needsManualGrading);
-          const finalSubmissions = (!hasPending || storedSubs.length === 0)
-            ? [
-                ...storedSubs,
-                ...INITIAL_SUBMISSIONS.filter((initSub) => !storedSubs.some((s: any) => s.id === initSub.id))
-              ]
-            : storedSubs;
+          const finalSubmissions = [
+            ...storedSubs,
+            ...INITIAL_SUBMISSIONS.filter((initSub) => !storedSubs.some((s: any) => s.id === initSub.id))
+          ];
 
           // Merge schedule and feeConfig if missing in stored classes, and include any new INITIAL_CLASSES
           const storedClasses: ClassRoom[] = Array.isArray(parsed.classes) ? parsed.classes : INITIAL_CLASSES;
@@ -116,6 +113,15 @@ class StoreService {
           const studentMap = new Map<string, Student>();
           INITIAL_STUDENTS.forEach((s) => studentMap.set(s.id, s));
           storedStudents.forEach((s) => studentMap.set(s.id, s));
+
+          // Ensure at least 5 pending students exist for simulation
+          const pendingInStore = Array.from(studentMap.values()).filter((s) => s.status === 'pending');
+          if (pendingInStore.length < 5) {
+            INITIAL_STUDENTS.filter((s) => s.status === 'pending').forEach((s) => {
+              studentMap.set(s.id, { ...s, status: 'pending' });
+            });
+          }
+
           const finalStudents = Array.from(studentMap.values());
 
           // If stored sessions is excessively large (the previous 68-session mock), replace with fresh trimmed INITIAL_SESSIONS
@@ -141,10 +147,14 @@ class StoreService {
             return q;
           });
 
-          // Ensure exam questions have unique IDs
-          const rawExams: Exam[] = Array.isArray(parsed.exams) ? parsed.exams : INITIAL_EXAMS;
+          // Ensure exam questions have unique IDs and include initial exams
+          const baseRawExams: Exam[] = Array.isArray(parsed.exams) ? parsed.exams : INITIAL_EXAMS;
+          const mergedExams = [
+            ...baseRawExams,
+            ...INITIAL_EXAMS.filter((ie) => !baseRawExams.some((re: Exam) => re.id === ie.id))
+          ];
           const seenExamIds = new Set<string>();
-          const sanitizedExams: Exam[] = rawExams.map((ex: Exam, eIdx: number) => {
+          const sanitizedExams: Exam[] = mergedExams.map((ex: Exam, eIdx: number) => {
             const exId = (!ex.id || seenExamIds.has(ex.id)) ? `exam-${Date.now()}-${eIdx}` : ex.id;
             seenExamIds.add(exId);
             const seenInExamQIds = new Set<string>();
@@ -185,11 +195,18 @@ class StoreService {
               .replace('Tự luận', 'Trắc nghiệm')
               .trim();
 
+            // Normalize 2024 dates to 2026 for consistent time filtering
+            const rawCreatedAt = ex.createdAt || '2026-08-15T08:00:00.000Z';
+            const normalizedCreatedAt = rawCreatedAt.startsWith('2024-')
+              ? rawCreatedAt.replace('2024-', '2026-')
+              : rawCreatedAt;
+
             return {
               ...ex,
               id: exId,
               title: cleanedTitle,
               description: cleanedDesc,
+              createdAt: normalizedCreatedAt,
               questions: sanitizedExamQuestions
             };
           });
@@ -204,7 +221,16 @@ class StoreService {
               seenAnsQIds.add(qId);
               return { ...ans, questionId: qId };
             });
-            return { ...sub, answers: sanitizedAnswers };
+
+            const submittedAtNormalized = sub.submittedAt && sub.submittedAt.startsWith('2024-')
+              ? sub.submittedAt.replace('2024-', '2026-')
+              : sub.submittedAt;
+
+            return {
+              ...sub,
+              submittedAt: submittedAtNormalized,
+              answers: sanitizedAnswers
+            };
           });
 
           return {
@@ -342,8 +368,115 @@ class StoreService {
     return [...this.state.students];
   }
 
-  public getStudentsByClassId(classId: string): Student[] {
-    return this.state.students.filter((s) => s.classId === classId);
+  public getActiveStudents(): Student[] {
+    return this.state.students.filter((s) => s.status !== 'pending');
+  }
+
+  public getPendingStudents(): Student[] {
+    let pending = this.state.students.filter((s) => s.status === 'pending');
+    if (pending.length < 5) {
+      INITIAL_STUDENTS.filter((s) => s.status === 'pending').forEach((initPending) => {
+        const idx = this.state.students.findIndex((s) => s.id === initPending.id);
+        if (idx !== -1) {
+          this.state.students[idx] = { ...initPending, status: 'pending' };
+        } else {
+          this.state.students.push({ ...initPending, status: 'pending' });
+        }
+      });
+      this.saveToStorage(this.state);
+      pending = this.state.students.filter((s) => s.status === 'pending');
+    }
+    return pending;
+  }
+
+  public resetPendingStudents(): Student[] {
+    INITIAL_STUDENTS.filter((s) => s.status === 'pending').forEach((initPending) => {
+      const idx = this.state.students.findIndex((s) => s.id === initPending.id);
+      if (idx !== -1) {
+        this.state.students[idx] = { ...initPending, status: 'pending' };
+      } else {
+        this.state.students.push({ ...initPending, status: 'pending' });
+      }
+    });
+    this.saveToStorage(this.state);
+    this.notify();
+    return this.state.students.filter((s) => s.status === 'pending');
+  }
+
+  public getStudentsByClassId(classId: string, status?: 'active' | 'pending' | 'all'): Student[] {
+    if (status === 'pending') {
+      return this.state.students.filter((s) => s.classId === classId && s.status === 'pending');
+    }
+    if (status === 'active') {
+      return this.state.students.filter((s) => s.classId === classId && s.status === 'active');
+    }
+    if (status === 'all') {
+      return this.state.students.filter((s) => s.classId === classId);
+    }
+    // Default to active students when viewing class members
+    return this.state.students.filter((s) => s.classId === classId && s.status !== 'pending');
+  }
+
+  public getPendingStudentsByClassId(classId: string): Student[] {
+    return this.state.students.filter((s) => s.classId === classId && s.status === 'pending');
+  }
+
+  public approveStudent(id: string, updatedData?: Partial<Student>): Student | undefined {
+    const index = this.state.students.findIndex((s) => s.id === id);
+    if (index === -1) return undefined;
+
+    const existing = this.state.students[index];
+    const updated: Student = {
+      ...existing,
+      ...(updatedData || {}),
+      status: 'active',
+      joinedAt: new Date().toISOString()
+    };
+
+    this.state.students[index] = updated;
+    this.state.teacher.stats.studentCount = this.state.students.filter((s) => s.status === 'active').length;
+
+    const cls = this.getClassById(updated.classId);
+    this.addActivityLog({
+      title: 'Duyệt học sinh vào lớp',
+      description: `Đã duyệt học sinh ${updated.fullName} (Mã: ${updated.code}) vào lớp ${cls?.name || ''}`,
+      type: 'student_added'
+    });
+
+    this.notify();
+    return updated;
+  }
+
+  public rejectStudent(id: string): boolean {
+    const student = this.state.students.find((s) => s.id === id);
+    if (!student) return false;
+
+    this.state.students = this.state.students.filter((s) => s.id !== id);
+    this.state.teacher.stats.studentCount = this.state.students.filter((s) => s.status === 'active').length;
+
+    const cls = this.getClassById(student.classId);
+    this.addActivityLog({
+      title: 'Từ chối yêu cầu vào lớp',
+      description: `Đã từ chối yêu cầu tham gia lớp ${cls?.name || ''} của ${student.fullName}`,
+      type: 'student_removed'
+    });
+
+    this.notify();
+    return true;
+  }
+
+  public approveStudentsBatch(studentList: Array<{ id: string; updates?: Partial<Student> }>): Student[] {
+    const approved: Student[] = [];
+    studentList.forEach(({ id, updates }) => {
+      const res = this.approveStudent(id, updates);
+      if (res) approved.push(res);
+    });
+    return approved;
+  }
+
+  public rejectStudentsBatch(ids: string[]): boolean {
+    ids.forEach((id) => this.rejectStudent(id));
+    return true;
   }
 
   public addStudent(student: Omit<Student, 'id' | 'joinedAt'>): Student {
@@ -825,6 +958,40 @@ class StoreService {
     this.notify();
   }
 
+  public setStudentBonusStars(
+    classId: string,
+    studentId: string,
+    studentCode: string,
+    studentName: string,
+    targetStars: number
+  ): void {
+    const clamped = Math.max(0, Math.round(Number(targetStars) || 0));
+    // Clear existing bonus points for this student in this class
+    this.state.bonusPoints = (this.state.bonusPoints || []).filter(
+      (b) => !(b.classId === classId && b.studentId === studentId)
+    );
+
+    if (clamped > 0) {
+      if (!this.state.bonusPoints) {
+        this.state.bonusPoints = [];
+      }
+      this.state.bonusPoints.unshift({
+        id: `bp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        classId,
+        studentId,
+        studentCode,
+        studentName,
+        points: clamped,
+        reason: 'Thưởng sao học tập & thi đua',
+        category: 'academic',
+        date: new Date().toISOString().split('T')[0],
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    this.notify();
+  }
+
   // === Điểm chuyên cần (Diligence Score & Summaries) ===
   public getClassDiligenceSummaries(classId: string): StudentDiligenceSummary[] {
     const students = this.getStudentsByClassId(classId);
@@ -1245,8 +1412,10 @@ class StoreService {
     this.notify();
   }
 
-  public addNotification(notification: Omit<TeacherNotification, 'id' | 'createdAt'>): TeacherNotification {
+  public addNotification(notification: Omit<TeacherNotification, 'id' | 'createdAt' | 'time' | 'read'> & { time?: string; read?: boolean }): TeacherNotification {
     const newNotif: TeacherNotification = {
+      time: 'Vừa xong',
+      read: false,
       ...notification,
       id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       createdAt: new Date().toISOString()

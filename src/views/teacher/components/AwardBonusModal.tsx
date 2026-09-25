@@ -25,9 +25,18 @@ export const AwardBonusModal: React.FC<AwardBonusModalProps> = ({
 
   const [selectedStudentId, setSelectedStudentId] = useState<string>(initialStudent?.id || (students[0]?.id || ''));
   const [points, setPoints] = useState<number>(1);
+  const [customPoints, setCustomPoints] = useState<string>('');
   const [category, setCategory] = useState<'academic' | 'attitude' | 'activity' | 'punctuality'>('academic');
   const [reason, setReason] = useState<string>('Phát biểu xây dựng bài sôi nổi & chính xác');
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  React.useEffect(() => {
+    if (initialStudent) {
+      setSelectedStudentId(initialStudent.id);
+    } else if (students.length > 0 && !selectedStudentId) {
+      setSelectedStudentId(students[0].id);
+    }
+  }, [initialStudent, isOpen, students]);
 
   if (!isOpen) return null;
 
@@ -148,23 +157,42 @@ export const AwardBonusModal: React.FC<AwardBonusModalProps> = ({
           {/* Points & Category */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="font-bold text-[#5C453C] block mb-1">Số sao / điểm thưởng *</label>
-              <div className="flex items-center gap-2">
-                {[1, 2, 3].map((num) => (
+              <label className="font-bold text-[#5C453C] block mb-1">Số sao thưởng *</label>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[1, 2, 3, 5, 10].map((num) => (
                   <button
                     key={num}
                     type="button"
-                    onClick={() => setPoints(num)}
-                    className={`flex-1 py-2 rounded-xl font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer ${
-                      points === num
+                    onClick={() => {
+                      setPoints(num);
+                      setCustomPoints('');
+                    }}
+                    className={`px-2.5 py-1.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer ${
+                      points === num && !customPoints
                         ? 'bg-[#B68176] text-white shadow-xs'
                         : 'bg-[#F5F0EA] text-[#5C453C] hover:bg-[#EFE3DD] border border-[#EFE3DD]'
                     }`}
                   >
-                    <Star className={`w-3.5 h-3.5 ${points === num ? 'fill-amber-300 text-amber-300' : 'text-amber-500'}`} />
+                    <Star className={`w-3.5 h-3.5 ${points === num && !customPoints ? 'fill-amber-300 text-amber-300' : 'text-amber-500'}`} />
                     <span>+{num}</span>
                   </button>
                 ))}
+                <div className="flex items-center gap-1 bg-[#F5F0EA] border border-[#EFE3DD] rounded-xl px-2 py-1">
+                  <span className="text-[11px] text-[#9A8A85]">Khác:</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    placeholder="..."
+                    value={customPoints}
+                    onChange={(e) => {
+                      setCustomPoints(e.target.value);
+                      const parsed = parseInt(e.target.value, 10);
+                      if (parsed > 0) setPoints(parsed);
+                    }}
+                    className="w-10 text-xs font-bold text-[#5C453C] bg-transparent outline-hidden text-center"
+                  />
+                </div>
               </div>
             </div>
 

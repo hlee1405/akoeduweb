@@ -165,11 +165,10 @@ export const scoringService = {
   },
 
   exportToCSV: (exam: Exam, submissions: Submission[]): string => {
-    const headers = ['Mã HS', 'Họ và tên', 'Tổng điểm', 'Thời gian làm (phút)', 'Chuyển tab', 'Trạng thái', 'Ngày nộp'];
+    const headers = ['Họ và tên', 'Tổng điểm', 'Thời gian làm (phút)', 'Chuyển tab', 'Trạng thái', 'Ngày nộp'];
     const rows = submissions
       .filter((s) => s.examId === exam.id)
       .map((s) => [
-        s.studentCode || 'Vãng lai',
         `"${s.studentName.replace(/"/g, '""')}"`,
         s.totalScore,
         Math.round((s.durationSeconds || 0) / 60),

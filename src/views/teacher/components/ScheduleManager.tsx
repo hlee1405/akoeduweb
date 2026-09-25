@@ -18,13 +18,20 @@ import {
   X,
   Sparkles,
   Download,
-  AlertCircle
+  AlertCircle,
+  Ban,
+  RotateCcw,
+  UserCheck,
+  CalendarDays,
+  Check
 } from 'lucide-react';
 import { ClassRoom, ClassScheduleItem, ClassTeachingSession, SessionMaterialItem } from '../../../types';
 import { store } from '../../../services/store';
 import { useToast } from '../../../context/ToastContext';
 import { useTheme } from '../../../context/ThemeContext';
 import { CalendarSessionModal } from './CalendarSessionModal';
+
+export type TeachingSessionStatus = 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
 
 export interface ScheduleManagerProps {
   cls: ClassRoom;
@@ -44,7 +51,7 @@ const DAYS_OF_WEEK_NAMES: Record<number, string> = {
 };
 
 // Formats a date YYYY-MM-DD to "Thứ tư, 12/08/2026"
-const formatSessionDateVN = (dateStr: string): string => {
+export const formatSessionDateVN = (dateStr: string): string => {
   try {
     const parts = dateStr.split('-');
     if (parts.length !== 3) return dateStr;
@@ -60,6 +67,77 @@ const formatSessionDateVN = (dateStr: string): string => {
   } catch {
     return dateStr;
   }
+};
+
+export const getTeachingSessionStatus = (
+  session: ClassTeachingSession,
+  _hasAttendance?: boolean
+): { type: TeachingSessionStatus; label: string; badgeColor: string } => {
+  if (session.status === 'cancelled') {
+    return {
+      type: 'cancelled',
+      label: 'Đã huỷ',
+      badgeColor: 'bg-rose-50 text-rose-700 border-rose-200'
+    };
+  }
+
+  // Dynamic real-time calculation based on session date and time
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const curMonth = String(now.getMonth() + 1).padStart(2, '0');
+  const curDate = String(now.getDate()).padStart(2, '0');
+  const todayStr = `${curYear}-${curMonth}-${curDate}`;
+  const curMinutes = now.getHours() * 60 + now.getMinutes();
+
+  if (session.date < todayStr) {
+    return {
+      type: 'completed',
+      label: 'Đã dạy',
+      badgeColor: 'bg-slate-100 text-slate-700 border-slate-200'
+    };
+  }
+
+  if (session.date > todayStr) {
+    return {
+      type: 'upcoming',
+      label: 'Sắp tới',
+      badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
+    };
+  }
+
+  // Same day (session.date === todayStr)
+  if (session.startTime && session.endTime) {
+    const [startH, startM] = session.startTime.split(':').map(Number);
+    const [endH, endM] = session.endTime.split(':').map(Number);
+    const startMinutes = (startH || 0) * 60 + (startM || 0);
+    const endMinutes = (endH || 0) * 60 + (endM || 0);
+
+    if (curMinutes >= startMinutes && curMinutes <= endMinutes) {
+      return {
+        type: 'ongoing',
+        label: 'Đang diễn ra',
+        badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+      };
+    }
+    if (curMinutes > endMinutes) {
+      return {
+        type: 'completed',
+        label: 'Đã dạy',
+        badgeColor: 'bg-slate-100 text-slate-700 border-slate-200'
+      };
+    }
+    return {
+      type: 'upcoming',
+      label: 'Sắp tới',
+      badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
+    };
+  }
+
+  return {
+    type: 'upcoming',
+    label: 'Sắp tới',
+    badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
+  };
 };
 
 export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
@@ -80,7 +158,10 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.map((s) => ({
+            ...s,
+            status: s.status || (s.attendanceDone ? 'completed' : 'upcoming')
+          }));
         }
       }
     } catch {
@@ -105,6 +186,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName,
         title: 'Khái niệm & Định nghĩa căn bậc hai số học',
         attendanceDone: false,
+        status: 'upcoming',
         materials: []
       },
       {
@@ -120,6 +202,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName,
         title: 'Luyện tập điều kiện xác định của căn thức bậc hai',
         attendanceDone: false,
+        status: 'upcoming',
         materials: []
       },
       {
@@ -135,6 +218,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName,
         title: 'Liên hệ giữa phép nhân và phép khai phương',
         attendanceDone: true,
+        status: 'completed',
         materials: [
           { id: 'm-1', title: 'Phiếu học tập bài 2.pdf', type: 'pdf', fileSize: '1.4 MB' }
         ]
@@ -152,6 +236,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName,
         title: 'Chữa bài tập khai phương một tích & bài toán thực tế',
         attendanceDone: false,
+        status: 'upcoming',
         materials: []
       },
       {
@@ -167,6 +252,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName,
         title: 'Liên hệ giữa phép chia và phép khai phương',
         attendanceDone: false,
+        status: 'upcoming',
         materials: []
       },
       {
@@ -182,6 +268,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName,
         title: 'Biến đổi đơn giản biểu thức chứa căn thức bậc hai',
         attendanceDone: false,
+        status: 'upcoming',
         materials: []
       },
       {
@@ -197,6 +284,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName: 'Chưa cập nhật',
         title: 'Rút gọn biểu thức chứa căn bậc hai nâng cao',
         attendanceDone: false,
+        status: 'upcoming',
         materials: []
       },
       {
@@ -212,6 +300,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName: 'Chưa cập nhật',
         title: 'Luyện đề trắc nghiệm tổng hợp chương I',
         attendanceDone: false,
+        status: 'upcoming',
         materials: []
       },
       {
@@ -227,6 +316,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName,
         title: 'Chương II: Nhắc lại và bổ sung về hàm số y = ax + b',
         attendanceDone: false,
+        status: 'upcoming',
         materials: []
       },
       {
@@ -242,6 +332,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName,
         title: 'Hàm số bậc nhất và tính chất đồng biến, nghịch biến',
         attendanceDone: false,
+        status: 'upcoming',
         materials: []
       },
       {
@@ -257,6 +348,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName,
         title: 'Đồ thị của hàm số y = ax + b (a ≠ 0)',
         attendanceDone: false,
+        status: 'upcoming',
         materials: []
       },
       {
@@ -272,6 +364,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName: 'Chưa cập nhật',
         title: 'Phụ đạo trực tuyến: Phương pháp giải nhanh bài toán đồ thị',
         attendanceDone: false,
+        status: 'upcoming',
         materials: []
       },
       {
@@ -287,46 +380,87 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName,
         title: 'Đường thẳng song song và đường thẳng cắt nhau',
         attendanceDone: false,
+        status: 'upcoming',
         materials: []
       }
     ];
   };
 
+  const ALL_STATUSES: TeachingSessionStatus[] = ['ongoing', 'upcoming', 'completed', 'cancelled'];
+
   const [sessions, setSessions] = useState<ClassTeachingSession[]>(getInitialSessions);
   const [searchQuery, setSearchQuery] = useState('');
-  const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'attended' | 'not_attended'>('all');
+  // Status checkbox multi-select filter (auto-ticked: ongoing and upcoming)
+  const [selectedStatuses, setSelectedStatuses] = useState<TeachingSessionStatus[]>(['ongoing', 'upcoming']);
   const [formatFilter, setFormatFilter] = useState<'all' | 'offline' | 'online'>('all');
+
+  const toggleStatusFilter = (st: TeachingSessionStatus) => {
+    setSelectedStatuses((prev) => {
+      if (prev.includes(st)) {
+        return prev.filter((item) => item !== st);
+      } else {
+        return [...prev, st];
+      }
+    });
+  };
+
+  const toggleAllStatuses = () => {
+    if (selectedStatuses.length === ALL_STATUSES.length) {
+      setSelectedStatuses(['ongoing', 'upcoming']);
+    } else {
+      setSelectedStatuses([...ALL_STATUSES]);
+    }
+  };
+
+  // Time Range Filter: 'all' | 'month' | 'custom_range'
+  const currentMonthStr = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
+  const [timeRangeMode, setTimeRangeMode] = useState<'all' | 'month' | 'custom_range'>('all');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}-01`;
+  });
+  const [endDate, setEndDate] = useState<string>(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const lastDay = new Date(y, m, 0).getDate();
+    return `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  });
+
+  // Unique list of available months in data
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    months.add(currentMonthStr);
+    sessions.forEach((s) => {
+      if (s.date && s.date.length >= 7) {
+        months.add(s.date.substring(0, 7));
+      }
+    });
+    return Array.from(months).sort();
+  }, [sessions, currentMonthStr]);
+
+  const formatMonthLabel = (monthKey: string) => {
+    const parts = monthKey.split('-');
+    if (parts.length === 2) {
+      return `Tháng ${parts[1]}/${parts[0]}`;
+    }
+    return monthKey;
+  };
 
   // Modal states
   const [showAttachModal, setShowAttachModal] = useState(false);
   const [activeSessionForAttach, setActiveSessionForAttach] = useState<ClassTeachingSession | null>(null);
 
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingSession, setEditingSession] = useState<ClassTeachingSession | null>(null);
-  const [isCreatingNew, setIsCreatingNew] = useState(false);
-
-  // Edit / Create form state
-  const [formData, setFormData] = useState<{
-    date: string;
-    shift: string;
-    startTime: string;
-    endTime: string;
-    room: string;
-    format: 'offline' | 'online' | 'hybrid';
-    teacherName: string;
-    title: string;
-    notes: string;
-  }>({
-    date: '',
-    shift: '1 - 2',
-    startTime: '07:30',
-    endTime: '09:00',
-    room: '102_HQV',
-    format: 'offline',
-    teacherName: '',
-    title: '',
-    notes: ''
-  });
+  // Calendar Modal states
+  const [calendarModalOpen, setCalendarModalOpen] = useState(false);
+  const [calendarSessionToEdit, setCalendarSessionToEdit] = useState<CalendarSession | null>(null);
 
   // Attach materials form state
   const [customMaterialTitle, setCustomMaterialTitle] = useState('');
@@ -361,16 +495,77 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
     return unsub;
   }, [cls.id]);
 
+  // Sync sessions when updated from attendance or other components
+  useEffect(() => {
+    const handleReload = () => {
+      try {
+        const cached = localStorage.getItem(storageKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed)) {
+            setSessions(
+              parsed.map((s) => ({
+                ...s,
+                status: s.status || (s.attendanceDone ? 'completed' : 'upcoming')
+              }))
+            );
+          }
+        }
+      } catch {}
+    };
+
+    window.addEventListener('storage', handleReload);
+    window.addEventListener('ako_session_updated', handleReload);
+    return () => {
+      window.removeEventListener('storage', handleReload);
+      window.removeEventListener('ako_session_updated', handleReload);
+    };
+  }, [storageKey]);
+
+  const handleOpenAttendanceForSession = (session: ClassTeachingSession) => {
+    const sessionLabel = `${formatSessionDateVN(session.date)}${
+      session.startTime ? ` (${session.startTime} - ${session.endTime})` : ''
+    }`;
+    if (onTakeAttendance) {
+      onTakeAttendance(session.date, sessionLabel);
+    }
+  };
+
   // Documents from teacher document repository
   const availableDocuments = useMemo(() => store.getDocuments(), []);
 
-  // Filtered Sessions
+  // Filtered and Sorted Sessions
   const filteredSessions = useMemo(() => {
-    return sessions.filter((s) => {
-      // Attendance status check
+    const list = sessions.filter((s) => {
       const hasAttendance = s.attendanceDone || store.getAttendanceRecords(cls.id, s.date).length > 0;
-      if (attendanceFilter === 'attended' && !hasAttendance) return false;
-      if (attendanceFilter === 'not_attended' && hasAttendance) return false;
+      const statusInfo = getTeachingSessionStatus(s, hasAttendance);
+
+      // 1. Time Range Filter
+      if (timeRangeMode === 'month') {
+        if (selectedMonth && selectedMonth !== 'all') {
+          const m = s.date.split('-')[1];
+          if (m !== selectedMonth && parseInt(m, 10) !== parseInt(selectedMonth, 10)) {
+            return false;
+          }
+        }
+      } else if (timeRangeMode === 'custom_range') {
+        if (startDate && s.date < startDate) {
+          return false;
+        }
+        if (endDate && s.date > endDate) {
+          return false;
+        }
+      }
+
+      // 2. Status Checkbox Filter (Multi-select)
+      if (selectedStatuses.length > 0) {
+        if (!selectedStatuses.includes(statusInfo.type)) {
+          return false;
+        }
+      } else {
+        // If no status is selected, list is empty
+        return false;
+      }
 
       // Format filter
       if (formatFilter !== 'all' && s.format !== formatFilter) return false;
@@ -393,107 +588,164 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         shift.includes(q)
       );
     });
-  }, [sessions, attendanceFilter, formatFilter, searchQuery, cls.id]);
 
-  // Statistics
-  const totalCount = sessions.length;
-  const attendedCount = sessions.filter(
-    (s) => s.attendanceDone || store.getAttendanceRecords(cls.id, s.date).length > 0
-  ).length;
-  const notAttendedCount = totalCount - attendedCount;
+    // Sort priority:
+    // 1. ongoing (Đang diễn ra) first (xếp 1)
+    // 2. upcoming (Sắp tới) chronologically from closest to furthest (timeline ascending)
+    // 3. completed (Đã dạy)
+    // 4. cancelled (Đã huỷ)
+    return list.sort((a, b) => {
+      const hasAttA = a.attendanceDone || store.getAttendanceRecords(cls.id, a.date).length > 0;
+      const hasAttB = b.attendanceDone || store.getAttendanceRecords(cls.id, b.date).length > 0;
+      const stA = getTeachingSessionStatus(a, hasAttA);
+      const stB = getTeachingSessionStatus(b, hasAttB);
 
-  // Handler: Open Add session
-  const handleOpenAddSession = () => {
-    const teacher = store.getTeacher();
-    const today = new Date();
-    const y = today.getFullYear();
-    const m = String(today.getMonth() + 1).padStart(2, '0');
-    const d = String(today.getDate()).padStart(2, '0');
+      const rank = (type: TeachingSessionStatus) => {
+        switch (type) {
+          case 'ongoing': return 0;
+          case 'upcoming': return 1;
+          case 'completed': return 2;
+          case 'cancelled': return 3;
+          default: return 4;
+        }
+      };
 
-    setFormData({
-      date: `${y}-${m}-${d}`,
-      shift: '1 - 2',
-      startTime: '07:30',
-      endTime: '09:00',
-      room: '102_HQV',
-      format: 'offline',
-      teacherName: teacher?.fullName || 'Vũ Văn Thương',
-      title: '',
-      notes: ''
+      const rankA = rank(stA.type);
+      const rankB = rank(stB.type);
+
+      if (rankA !== rankB) {
+        return rankA - rankB;
+      }
+
+      // Within ongoing & upcoming: sort chronologically from closest to furthest
+      if (rankA === 0 || rankA === 1) {
+        if (a.date !== b.date) {
+          return a.date.localeCompare(b.date);
+        }
+        return (a.startTime || '').localeCompare(b.startTime || '');
+      }
+
+      // Within completed & cancelled: sort chronologically
+      if (a.date !== b.date) {
+        return a.date.localeCompare(b.date);
+      }
+      return (a.startTime || '').localeCompare(b.startTime || '');
     });
-    setIsCreatingNew(true);
-    setEditingSession(null);
-    setShowEditModal(true);
+  }, [sessions, timeRangeMode, currentMonthStr, selectedMonth, startDate, endDate, selectedStatuses, formatFilter, searchQuery, cls.id]);
+
+  // Status Counts calculated for the current Time Range filter
+  const statusCounts = useMemo(() => {
+    const listInTimeRange = sessions.filter((s) => {
+      if (timeRangeMode === 'month') {
+        if (selectedMonth && selectedMonth !== 'all') {
+          const m = s.date.split('-')[1];
+          return m === selectedMonth || parseInt(m, 10) === parseInt(selectedMonth, 10);
+        }
+        return true;
+      }
+      if (timeRangeMode === 'custom_range') {
+        if (startDate && s.date < startDate) return false;
+        if (endDate && s.date > endDate) return false;
+        return true;
+      }
+      return true;
+    });
+
+    const counts = { all: listInTimeRange.length, upcoming: 0, ongoing: 0, completed: 0, cancelled: 0 };
+    listInTimeRange.forEach((s) => {
+      const hasAtt = s.attendanceDone || store.getAttendanceRecords(cls.id, s.date).length > 0;
+      const st = getTeachingSessionStatus(s, hasAtt);
+      counts[st.type]++;
+    });
+    return counts;
+  }, [sessions, timeRangeMode, currentMonthStr, selectedMonth, startDate, endDate, cls.id]);
+
+  // Quick toggle session status between cancelled & upcoming
+  const handleToggleCancelSession = (session: ClassTeachingSession) => {
+    const isCancelled = session.status === 'cancelled';
+    const nextStatus: TeachingSessionStatus = isCancelled ? 'upcoming' : 'cancelled';
+    const updated = sessions.map((s) => (s.id === session.id ? { ...s, status: nextStatus } : s));
+    saveSessions(updated);
+    if (isCancelled) {
+      success('Đã khôi phục ca học');
+    } else {
+      info('Đã chuyển trạng thái ca học sang Đã huỷ');
+    }
   };
 
-  // Handler: Open Edit session
+  // Handler: Open Add session (synchronized with CalendarSessionModal)
+  const handleOpenAddSession = () => {
+    setCalendarSessionToEdit(null);
+    setCalendarModalOpen(true);
+  };
+
+  // Handler: Open Edit session (synchronized with CalendarSessionModal)
   const handleOpenEditSession = (session: ClassTeachingSession) => {
-    setFormData({
+    const existingCalSession = store.getSessions().find(
+      (cs) => cs.id === session.id || (cs.classId === cls.id && cs.date === session.date && cs.startTime === session.startTime)
+    );
+
+    const calSession: CalendarSession = existingCalSession || {
+      id: session.id,
+      classId: cls.id,
+      className: session.title || cls.name,
+      subject: cls.subject || 'Toán học',
       date: session.date,
-      shift: session.shift || '1 - 2',
       startTime: session.startTime || '07:30',
       endTime: session.endTime || '09:00',
       room: session.room || '102_HQV',
-      format: session.format || 'offline',
-      teacherName: session.teacherName || '',
-      title: session.title || '',
-      notes: session.notes || ''
-    });
-    setIsCreatingNew(false);
-    setEditingSession(session);
-    setShowEditModal(true);
+      color: 'indigo',
+      notes: session.notes || '',
+      repeatType: 'none'
+    };
+
+    setCalendarSessionToEdit(calSession);
+    setCalendarModalOpen(true);
   };
 
-  // Handler: Save Session (Create or Update)
-  const handleSaveSession = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.date) {
-      alert('Vui lòng chọn ngày học');
-      return;
-    }
+  // Handler: When saved in CalendarSessionModal
+  const handleCalendarSaved = (savedSession: CalendarSession) => {
+    const existingIdx = sessions.findIndex(
+      (s) => s.id === savedSession.id || (s.date === savedSession.date && s.startTime === savedSession.startTime)
+    );
 
-    if (isCreatingNew) {
-      const newSession: ClassTeachingSession = {
-        id: `ts-${cls.id}-${Date.now()}`,
+    if (existingIdx >= 0) {
+      const updated = [...sessions];
+      updated[existingIdx] = {
+        ...updated[existingIdx],
+        date: savedSession.date,
+        startTime: savedSession.startTime,
+        endTime: savedSession.endTime,
+        room: savedSession.room || updated[existingIdx].room,
+        title: savedSession.className || updated[existingIdx].title,
+        notes: savedSession.notes || updated[existingIdx].notes
+      };
+      saveSessions(updated);
+    } else {
+      const newTeachingSession: ClassTeachingSession = {
+        id: savedSession.id,
         classId: cls.id,
-        date: formData.date,
-        shift: formData.shift,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
-        room: formData.room,
-        format: formData.format,
-        teacherName: formData.teacherName || 'Chưa cập nhật',
-        title: formData.title || 'Buổi học định kỳ',
-        notes: formData.notes,
+        date: savedSession.date,
+        dayOfWeek: new Date(savedSession.date).getDay(),
+        shift: '1 - 2',
+        startTime: savedSession.startTime,
+        endTime: savedSession.endTime,
+        room: savedSession.room || '102_HQV',
+        format: 'offline',
+        teacherName: store.getTeacher()?.fullName || 'Vũ Văn Thương',
+        title: savedSession.className || 'Ca học mới',
+        notes: savedSession.notes || '',
         attendanceDone: false,
+        status: 'upcoming',
         materials: []
       };
-      saveSessions([...sessions, newSession]);
-      success('Đã thêm buổi dạy mới vào lịch');
-    } else if (editingSession) {
-      const updated = sessions.map((s) => {
-        if (s.id === editingSession.id) {
-          return {
-            ...s,
-            date: formData.date,
-            shift: formData.shift,
-            startTime: formData.startTime,
-            endTime: formData.endTime,
-            room: formData.room,
-            format: formData.format,
-            teacherName: formData.teacherName || 'Chưa cập nhật',
-            title: formData.title,
-            notes: formData.notes
-          };
-        }
-        return s;
-      });
-      saveSessions(updated);
-      success('Đã cập nhật thông tin buổi dạy');
+      saveSessions([...sessions, newTeachingSession]);
     }
+  };
 
-    setShowEditModal(false);
-    setEditingSession(null);
+  const handleCalendarDeleted = (deletedId: string) => {
+    const updated = sessions.filter((s) => s.id !== deletedId);
+    saveSessions(updated);
   };
 
   // Handler: Delete Session
@@ -654,57 +906,291 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
     <div id="teaching-schedule-container" className="space-y-5">
       {/* Top Header & Filter Toolbar */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
-              <Calendar className="w-4 h-4" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <h3 className="font-bold text-slate-800 text-base sm:text-lg">
+                Lịch dạy lớp {cls.name}
+              </h3>
             </div>
-            <h3 className="font-bold text-slate-800 text-base sm:text-lg">
-              Lịch dạy lớp {cls.name}
-            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Quản lý chi tiết từng buổi học, theo dõi 4 trạng thái giảng dạy, điểm danh và học liệu
+            </p>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Quản lý chi tiết từng buổi học, theo dõi trạng thái điểm danh, gắn tài liệu học tập và giao bài
-          </p>
+
+          <button
+            type="button"
+            onClick={handleOpenAddSession}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer shrink-0 self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Thêm ca học</span>
+          </button>
         </div>
 
-        {/* Filters Bar (Searchbar removed per request) */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100">
-          <div className="flex items-center gap-2 text-xs font-semibold">
-            <span className="text-slate-500 text-xs font-medium">Trạng thái:</span>
-            <div className="flex items-center bg-slate-100/90 p-1 rounded-xl border border-slate-200/80">
-              <button
-                type="button"
-                onClick={() => setAttendanceFilter('all')}
-                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                  attendanceFilter === 'all'
-                    ? 'bg-white text-slate-800 font-bold shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+        {/* 2 Filter Bars: 1. Time Range (Chia rõ 2 kiểu: Theo tháng & Từ ngày đến ngày) & 2. Trạng thái */}
+        <div className="space-y-3 pt-3 border-t border-slate-100">
+          {/* Bộ lọc 1: Khoảng thời gian (Time Range) chia thành 2 kiểu rõ ràng */}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-slate-500 text-xs font-medium flex items-center gap-1.5 shrink-0">
+              <CalendarDays className="w-3.5 h-3.5 text-blue-600" />
+              <span>Thời gian:</span>
+            </span>
+
+            {/* Kiểu 1: Chọn Tất cả hoặc theo Tháng (Tháng 1 - Tháng 12) */}
+            <div className="flex items-center gap-1.5 text-xs">
+              <select
+                value={timeRangeMode === 'month' ? selectedMonth : 'all'}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'all') {
+                    setTimeRangeMode('all');
+                    setSelectedMonth('all');
+                  } else {
+                    setTimeRangeMode('month');
+                    setSelectedMonth(val);
+                  }
+                }}
+                className={`text-xs font-bold py-1.5 px-3 rounded-xl border outline-hidden cursor-pointer shadow-2xs transition-all ${
+                  timeRangeMode === 'all' || timeRangeMode === 'month'
+                    ? 'bg-blue-50/70 border-blue-300 text-blue-900'
+                    : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                 }`}
               >
-                Tất cả ({totalCount})
+                <option value="all">Tất cả</option>
+                <option value="01">Tháng 1</option>
+                <option value="02">Tháng 2</option>
+                <option value="03">Tháng 3</option>
+                <option value="04">Tháng 4</option>
+                <option value="05">Tháng 5</option>
+                <option value="06">Tháng 6</option>
+                <option value="07">Tháng 7</option>
+                <option value="08">Tháng 8</option>
+                <option value="09">Tháng 9</option>
+                <option value="10">Tháng 10</option>
+                <option value="11">Tháng 11</option>
+                <option value="12">Tháng 12</option>
+              </select>
+            </div>
+
+            {/* Kiểu 2: Lọc theo khoảng ngày (Từ ngày - Đến ngày) */}
+            <div className={`flex flex-wrap items-center gap-2 p-1 px-2.5 rounded-xl border text-xs transition-all ${
+              timeRangeMode === 'custom_range'
+                ? 'bg-blue-50/70 border-blue-200'
+                : 'bg-slate-100/80 border-slate-200/80'
+            }`}>
+              <button
+                type="button"
+                onClick={() => setTimeRangeMode('custom_range')}
+                className={`px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                  timeRangeMode === 'custom_range'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
+                    : 'text-slate-600 hover:text-blue-700 hover:bg-slate-200/60'
+                }`}
+              >
+                Từ ngày đến ngày
               </button>
+
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] text-slate-500 font-medium">Từ:</span>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => {
+                      setTimeRangeMode('custom_range');
+                      setStartDate(e.target.value);
+                    }}
+                    onFocus={() => setTimeRangeMode('custom_range')}
+                    className="bg-white px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-800 outline-hidden cursor-pointer focus:border-blue-400"
+                  />
+                </div>
+                <span className="text-slate-400 font-bold">-</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[11px] text-slate-500 font-medium">Đến:</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => {
+                      setTimeRangeMode('custom_range');
+                      setEndDate(e.target.value);
+                    }}
+                    onFocus={() => setTimeRangeMode('custom_range')}
+                    className="bg-white px-2 py-1 rounded-lg border border-slate-200 text-xs font-bold text-slate-800 outline-hidden cursor-pointer focus:border-blue-400"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bộ lọc 2: Trạng thái (Status Filter dạng Checkbox, auto-tick Đang diễn ra & Sắp tới, có hiệu ứng phát sáng) */}
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold pt-2 border-t border-slate-100">
+            <span className="text-slate-500 text-xs font-medium flex items-center gap-1.5 shrink-0">
+              <Filter className="w-3.5 h-3.5 text-blue-600" />
+              <span>Trạng thái:</span>
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {/* 1. Đang diễn ra (Xếp 1) */}
               <button
                 type="button"
-                onClick={() => setAttendanceFilter('not_attended')}
-                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                  attendanceFilter === 'not_attended'
-                    ? 'bg-white text-rose-700 font-bold shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                onClick={() => toggleStatusFilter('ongoing')}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer select-none ${
+                  selectedStatuses.includes('ongoing')
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-400 ring-2 ring-emerald-400/50 shadow-md shadow-emerald-500/25 scale-[1.02]'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50 opacity-75 hover:opacity-100'
                 }`}
               >
-                Chưa điểm danh ({notAttendedCount})
+                <div
+                  className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${
+                    selectedStatuses.includes('ongoing')
+                      ? 'bg-emerald-600 text-white shadow-2xs'
+                      : 'border border-slate-300 bg-white'
+                  }`}
+                >
+                  {selectedStatuses.includes('ongoing') && <Check className="w-3 h-3 stroke-[3]" />}
+                </div>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span>Đang diễn ra</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    selectedStatuses.includes('ongoing')
+                      ? 'bg-emerald-200/80 text-emerald-900'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {statusCounts.ongoing}
+                </span>
               </button>
+
+              {/* 2. Sắp tới */}
               <button
                 type="button"
-                onClick={() => setAttendanceFilter('attended')}
-                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                  attendanceFilter === 'attended'
-                    ? 'bg-white text-emerald-700 font-bold shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                onClick={() => toggleStatusFilter('upcoming')}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer select-none ${
+                  selectedStatuses.includes('upcoming')
+                    ? 'bg-blue-50 text-blue-800 border-blue-400 ring-2 ring-blue-400/50 shadow-md shadow-blue-500/25 scale-[1.02]'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50 opacity-75 hover:opacity-100'
                 }`}
               >
-                Đã điểm danh ({attendedCount})
+                <div
+                  className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${
+                    selectedStatuses.includes('upcoming')
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'border border-slate-300 bg-white'
+                  }`}
+                >
+                  {selectedStatuses.includes('upcoming') && <Check className="w-3 h-3 stroke-[3]" />}
+                </div>
+                <span>Sắp tới</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    selectedStatuses.includes('upcoming')
+                      ? 'bg-blue-200/80 text-blue-900'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {statusCounts.upcoming}
+                </span>
+              </button>
+
+              {/* 3. Đã dạy */}
+              <button
+                type="button"
+                onClick={() => toggleStatusFilter('completed')}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer select-none ${
+                  selectedStatuses.includes('completed')
+                    ? 'bg-slate-100 text-slate-800 border-slate-400 ring-2 ring-slate-400/50 shadow-md shadow-slate-400/25 scale-[1.02]'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50 opacity-75 hover:opacity-100'
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${
+                    selectedStatuses.includes('completed')
+                      ? 'bg-slate-700 text-white shadow-2xs'
+                      : 'border border-slate-300 bg-white'
+                  }`}
+                >
+                  {selectedStatuses.includes('completed') && <Check className="w-3 h-3 stroke-[3]" />}
+                </div>
+                <span>Đã dạy</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    selectedStatuses.includes('completed')
+                      ? 'bg-slate-300/80 text-slate-900'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {statusCounts.completed}
+                </span>
+              </button>
+
+              {/* 4. Đã huỷ */}
+              <button
+                type="button"
+                onClick={() => toggleStatusFilter('cancelled')}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer select-none ${
+                  selectedStatuses.includes('cancelled')
+                    ? 'bg-rose-50 text-rose-800 border-rose-400 ring-2 ring-rose-400/50 shadow-md shadow-rose-500/25 scale-[1.02]'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50 opacity-75 hover:opacity-100'
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${
+                    selectedStatuses.includes('cancelled')
+                      ? 'bg-rose-600 text-white shadow-2xs'
+                      : 'border border-slate-300 bg-white'
+                  }`}
+                >
+                  {selectedStatuses.includes('cancelled') && <Check className="w-3 h-3 stroke-[3]" />}
+                </div>
+                <span>Đã huỷ</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    selectedStatuses.includes('cancelled')
+                      ? 'bg-rose-200/80 text-rose-900'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {statusCounts.cancelled}
+                </span>
+              </button>
+
+              {/* 5. Tất cả (Dưới cùng / Cuối cùng) */}
+              <button
+                type="button"
+                onClick={toggleAllStatuses}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all duration-200 cursor-pointer select-none ${
+                  selectedStatuses.length === ALL_STATUSES.length
+                    ? 'bg-indigo-50 text-indigo-800 border-indigo-400 ring-2 ring-indigo-400/50 shadow-md shadow-indigo-500/25 scale-[1.02]'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50 opacity-75 hover:opacity-100'
+                }`}
+                title="Chọn/Bỏ chọn tất cả các trạng thái"
+              >
+                <div
+                  className={`w-4 h-4 rounded-md flex items-center justify-center transition-all ${
+                    selectedStatuses.length === ALL_STATUSES.length
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'border border-slate-300 bg-white'
+                  }`}
+                >
+                  {selectedStatuses.length === ALL_STATUSES.length && <Check className="w-3 h-3 stroke-[3]" />}
+                </div>
+                <span>Tất cả</span>
+                <span
+                  className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                    selectedStatuses.length === ALL_STATUSES.length
+                      ? 'bg-indigo-200/80 text-indigo-900'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {statusCounts.all}
+                </span>
               </button>
             </div>
           </div>
@@ -791,20 +1277,21 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
               <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider text-[11px]">
                 <th className="py-3 px-3 text-center w-12 shrink-0">TT</th>
                 <th className="py-3 px-4 min-w-[180px]">Ngày học</th>
+                <th className="py-3 px-3 text-center min-w-[130px]">Trạng thái</th>
                 <th className="py-3 px-3 text-center min-w-[140px]">Điểm danh</th>
                 <th className="py-3 px-4 min-w-[180px]">Ghi chú</th>
                 <th className="py-3 px-3 text-center min-w-[120px]">Học liệu</th>
-                <th className="py-3 px-4 text-center min-w-[140px]">Thao tác</th>
+                <th className="py-3 px-4 text-center min-w-[150px]">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredSessions.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     <Calendar className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                     <p className="font-bold text-slate-600 text-sm">Không tìm thấy buổi học nào</p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Danh sách lịch dạy đang trống
+                      Danh sách lịch dạy đang trống hoặc không khớp bộ lọc trạng thái
                     </p>
                   </td>
                 </tr>
@@ -814,11 +1301,14 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
                     session.attendanceDone ||
                     store.getAttendanceRecords(cls.id, session.date).length > 0;
                   const materialsCount = session.materials?.length || 0;
+                  const statusInfo = getTeachingSessionStatus(session, hasAttendance);
 
                   return (
                     <tr
                       key={session.id}
-                      className="hover:bg-blue-50/25 transition-colors group"
+                      className={`hover:bg-blue-50/25 transition-colors group ${
+                        statusInfo.type === 'cancelled' ? 'opacity-75 bg-slate-50/40' : ''
+                      }`}
                     >
                       {/* 1. TT */}
                       <td className="py-3 px-3 text-center font-bold text-slate-400 group-hover:text-blue-600">
@@ -828,7 +1318,15 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
                       {/* 2. Ngày học */}
                       <td className="py-3 px-4 font-semibold text-slate-800 whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-slate-800 font-bold">{formatSessionDateVN(session.date)}</span>
+                          <span
+                            className={`font-bold ${
+                              statusInfo.type === 'cancelled'
+                                ? 'line-through text-slate-500'
+                                : 'text-slate-800'
+                            }`}
+                          >
+                            {formatSessionDateVN(session.date)}
+                          </span>
                         </div>
                         {session.startTime && session.endTime && (
                           <div className="text-[11px] text-slate-400 font-normal mt-0.5 flex items-center gap-1">
@@ -838,42 +1336,49 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
                         )}
                       </td>
 
-                      {/* 3. Điểm danh */}
+                      {/* 3. Trạng thái (4 trạng thái: Sắp tới, Đang diễn ra, Đã dạy, Đã huỷ) */}
                       <td className="py-3 px-3 text-center whitespace-nowrap">
-                        {hasAttendance ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onTakeAttendance?.(
-                                session.date,
-                                `${formatSessionDateVN(session.date)}${session.startTime ? ` (${session.startTime} - ${session.endTime})` : ''}`
-                              )
-                            }
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 transition-all cursor-pointer"
-                            title="Bấm để xem lại hoặc cập nhật điểm danh buổi này"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Đã điểm danh</span>
-                          </button>
+                        {statusInfo.type === 'ongoing' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                            </span>
+                            <span>Đang diễn ra</span>
+                          </span>
+                        ) : statusInfo.type === 'upcoming' ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200/90 shadow-2xs">
+                            Sắp tới
+                          </span>
+                        ) : statusInfo.type === 'completed' ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 shadow-2xs">
+                            Đã dạy
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
+                            Đã huỷ
+                          </span>
+                        )}
+                      </td>
+
+                      {/* 4. Điểm danh */}
+                      <td className="py-3 px-3 text-center whitespace-nowrap">
+                        {statusInfo.type === 'cancelled' ? (
+                          <span className="text-[11px] text-slate-400 italic">Không áp dụng</span>
                         ) : (
                           <button
                             type="button"
-                            onClick={() =>
-                              onTakeAttendance?.(
-                                session.date,
-                                `${formatSessionDateVN(session.date)}${session.startTime ? ` (${session.startTime} - ${session.endTime})` : ''}`
-                              )
-                            }
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 transition-all cursor-pointer"
-                            title="Chưa điểm danh - Bấm để tiến hành điểm danh ngay"
+                            onClick={() => handleOpenAttendanceForSession(session)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white text-slate-700 border border-slate-200/90 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 transition-all cursor-pointer shadow-2xs group/btn"
+                            title="Bấm để mở giao diện điểm danh buổi này"
                           >
-                            <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
-                            <span>Chưa điểm danh</span>
+                            <UserCheck className="w-3.5 h-3.5 text-slate-500 group-hover/btn:text-blue-600" />
+                            <span>Điểm danh</span>
                           </button>
                         )}
                       </td>
 
-                      {/* 4. Ghi chú */}
+                      {/* 5. Ghi chú */}
                       <td className="py-3 px-4 text-slate-700">
                         {session.notes ? (
                           <span className="text-slate-800 font-medium line-clamp-1 max-w-[260px]" title={session.notes}>
@@ -882,7 +1387,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
                         ) : null}
                       </td>
 
-                      {/* 5. Học liệu (Tài liệu học tập) */}
+                      {/* 6. Học liệu (Tài liệu học tập) */}
                       <td className="py-3 px-3 text-center whitespace-nowrap">
                         {materialsCount > 0 ? (
                           <button
@@ -906,17 +1411,22 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
                         )}
                       </td>
 
-                      {/* 5. Thao tác: Giao bài, Sửa, Xóa */}
+                      {/* 7. Thao tác: Giao bài, Sửa, Huỷ/Khôi phục, Xóa */}
                       <td className="py-3 px-4 text-center whitespace-nowrap">
                         <div className="inline-flex items-center gap-1 justify-center bg-slate-50 border border-slate-200/90 rounded-xl p-1 shadow-2xs">
                           {/* Giao bài */}
                           <button
                             type="button"
+                            disabled={statusInfo.type === 'cancelled'}
                             onClick={() => {
                               onAssignExam?.(session);
                               info(`Mở giao bài tập/đề thi cho buổi ${formatSessionDateVN(session.date)}`);
                             }}
-                            className="p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              statusInfo.type === 'cancelled'
+                                ? 'text-slate-300 cursor-not-allowed'
+                                : 'text-slate-600 hover:text-emerald-600 hover:bg-white'
+                            }`}
                             title="Giao bài tập, đề thi cho buổi học này"
                           >
                             <Send className="w-3.5 h-3.5" />
@@ -927,9 +1437,31 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
                             type="button"
                             onClick={() => handleOpenEditSession(session)}
                             className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
-                            title="Chỉnh sửa buổi học"
+                            title="Chỉnh sửa buổi học & trạng thái"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Nút Chuyển nhanh Đã huỷ / Khôi phục */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCancelSession(session)}
+                            className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                              statusInfo.type === 'cancelled'
+                                ? 'text-emerald-600 hover:bg-emerald-50'
+                                : 'text-rose-500 hover:bg-rose-50'
+                            }`}
+                            title={
+                              statusInfo.type === 'cancelled'
+                                ? 'Khôi phục buổi học'
+                                : 'Đánh dấu Huỷ buổi học này'
+                            }
+                          >
+                            {statusInfo.type === 'cancelled' ? (
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            ) : (
+                              <Ban className="w-3.5 h-3.5" />
+                            )}
                           </button>
 
                           {/* Xóa */}
@@ -937,7 +1469,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
                             type="button"
                             onClick={() => handleDeleteSession(session.id)}
                             className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-colors cursor-pointer"
-                            title="Xóa buổi học"
+                            title="Xóa vĩnh viễn buổi học"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1121,102 +1653,22 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         </div>
       )}
 
-      {/* MODAL 2: Thêm / Chỉnh sửa buổi học (Create / Edit Session Modal) */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-lg w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95">
-            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
-                  {isCreatingNew ? <Plus className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-800 text-sm sm:text-base">
-                    {isCreatingNew ? 'Thêm buổi dạy mới' : 'Chỉnh sửa thông tin buổi dạy'}
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Lớp: {cls.name}</p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditingSession(null);
-                }}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveSession} className="p-5 space-y-4 text-xs">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Ngày học *</label>
-                <input
-                  type="date"
-                  required
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-hidden focus:border-blue-600 focus:bg-white text-xs font-semibold text-slate-800"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Giờ bắt đầu</label>
-                  <input
-                    type="time"
-                    value={formData.startTime}
-                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-hidden focus:border-blue-600 text-xs font-medium"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Giờ kết thúc</label>
-                  <input
-                    type="time"
-                    value={formData.endTime}
-                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-hidden focus:border-blue-600 text-xs font-medium"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Ghi chú (tùy chọn)</label>
-                <input
-                  type="text"
-                  placeholder="Nhập ghi chú cho buổi dạy nếu có..."
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-hidden focus:border-blue-600 text-xs font-medium"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowEditModal(false);
-                    setEditingSession(null);
-                  }}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl cursor-pointer shadow-xs transition-colors"
-                >
-                  {isCreatingNew ? 'Tạo buổi học' : 'Lưu thay đổi'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* MODAL: Thêm / Chỉnh sửa ca học (Đồng bộ hoàn toàn với Thời gian biểu) */}
+      <CalendarSessionModal
+        isOpen={calendarModalOpen}
+        onClose={() => {
+          setCalendarModalOpen(false);
+          setCalendarSessionToEdit(null);
+        }}
+        initialClassId={cls.id}
+        lockClass={true}
+        initialDate={new Date().toISOString().split('T')[0]}
+        initialStartTime="07:30"
+        initialEndTime="09:00"
+        sessionToEdit={calendarSessionToEdit}
+        onSaved={handleCalendarSaved}
+        onDeleted={handleCalendarDeleted}
+      />
 
       {/* Synchronized Add / Edit Weekly Recurring Session Modal */}
       <CalendarSessionModal

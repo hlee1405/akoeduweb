@@ -43,9 +43,7 @@ export const DiligenceTracker: React.FC<DiligenceTrackerProps> = ({ cls, student
   const totalStarsAwarded = summaries.reduce((sum, s) => sum + s.bonusPoints, 0);
 
   const filteredSummaries = summaries.filter((s) => {
-    const matchSearch =
-      s.student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.student.code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchSearch = s.student.fullName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchRank = selectedRankFilter === 'all' || s.rankTier === selectedRankFilter;
     return matchSearch && matchRank;
   });
@@ -54,7 +52,6 @@ export const DiligenceTracker: React.FC<DiligenceTrackerProps> = ({ cls, student
     const rows = [
       [
         'Xếp hạng',
-        'Mã HS',
         'Họ và tên',
         'Có mặt',
         'Đi muộn',
@@ -67,7 +64,6 @@ export const DiligenceTracker: React.FC<DiligenceTrackerProps> = ({ cls, student
       ],
       ...summaries.map((s, idx) => [
         idx + 1,
-        s.student.code,
         s.student.fullName,
         s.presentCount,
         s.lateCount,
@@ -162,7 +158,7 @@ export const DiligenceTracker: React.FC<DiligenceTrackerProps> = ({ cls, student
         <div className="flex flex-wrap items-center gap-2.5 flex-1">
           <input
             type="text"
-            placeholder="Tìm theo tên học sinh, mã HS..."
+            placeholder="Tìm theo tên học sinh..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="px-3.5 py-2 border border-[#EFE3DD] bg-[#F5F0EA] rounded-xl text-xs text-[#5C453C] placeholder-[#9A8A85] flex-1 min-w-[200px] max-w-xs outline-hidden focus:bg-[#FFFDF9] focus:ring-2 focus:ring-[#B68176]"
@@ -198,7 +194,6 @@ export const DiligenceTracker: React.FC<DiligenceTrackerProps> = ({ cls, student
             <thead>
               <tr className="bg-[#F5F0EA] border-b border-[#EFE3DD] text-[#5C453C] font-bold uppercase tracking-wider text-[11px]">
                 <th className="py-3.5 pl-4 text-center w-14">Hạng</th>
-                <th className="py-3.5 w-24">Mã HS</th>
                 <th className="py-3.5 min-w-[180px]">Họ và tên</th>
                 <th className="py-3.5 text-center min-w-[140px]">Chuyên cần buổi học</th>
                 <th className="py-3.5 text-center min-w-[140px]">Tỷ lệ đi học</th>
@@ -236,9 +231,6 @@ export const DiligenceTracker: React.FC<DiligenceTrackerProps> = ({ cls, student
                         <span className="font-semibold text-[#9A8A85]">{idx + 1}</span>
                       )}
                     </td>
-
-                    {/* Student Code */}
-                    <td className="py-3 font-mono font-bold text-[#B68176]">{item.student.code}</td>
 
                     {/* Student Info */}
                     <td className="py-3">

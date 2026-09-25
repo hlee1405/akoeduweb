@@ -18,7 +18,6 @@ import {
   CheckCircle2,
   AlertCircle,
   ExternalLink,
-  Archive,
   Send,
   Calendar,
   ShieldCheck,
@@ -27,7 +26,17 @@ import {
   UserCheck,
   ChevronDown,
   X,
-  Edit3
+  Edit3,
+  Phone,
+  Mail,
+  User,
+  Filter,
+  SlidersHorizontal,
+  ArrowUpDown,
+  Check,
+  BarChart3,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import { store } from '../../services/store';
 import { ClassRoom, Student, Exam, Submission, StudentDiligenceSummary } from '../../types';
@@ -37,7 +46,6 @@ import { ClassFormModal } from '../../components/classes/ClassFormModal';
 import { useToast } from '../../context/ToastContext';
 import { ExamStatusBadge, DiligenceRankBadge } from '../../components/common/Badge';
 import { AttendanceManager } from './components/AttendanceManager';
-import { AwardBonusModal } from './components/AwardBonusModal';
 import { ScheduleManager } from './components/ScheduleManager';
 import { MonthlyStudentReportModal } from './components/MonthlyReportModal';
 import { AssignExamModal } from './components/AssignExamModal';
@@ -45,6 +53,8 @@ import { CreateHomeworkModal } from './components/CreateHomeworkModal';
 import { ClassAssignExamModal } from './components/ClassAssignExamModal';
 import { AzotaCreateExamModal } from './components/AzotaCreateExamModal';
 import { ExamInfoModal } from './components/ExamInfoModal';
+import { StudentApprovalModal } from './components/StudentApprovalModal';
+import { StudentExcelImportModal } from './components/StudentExcelImportModal';
 
 export const ClassDetailView: React.FC = () => {
   const { classId } = useParams<{ classId: string }>();
@@ -61,6 +71,7 @@ export const ClassDetailView: React.FC = () => {
   >('students');
   const [searchTerm, setSearchTerm] = useState('');
   const [showQRModal, setShowQRModal] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [showEditClassModal, setShowEditClassModal] = useState(false);
   const [showDeleteClassModal, setShowDeleteClassModal] = useState(false);
 
@@ -72,10 +83,6 @@ export const ClassDetailView: React.FC = () => {
   const [attendanceTargetDate, setAttendanceTargetDate] = useState<string | undefined>(undefined);
   const [attendanceTargetSession, setAttendanceTargetSession] = useState<string | undefined>(undefined);
   const [showAttendanceModal, setShowAttendanceModal] = useState<boolean>(false);
-
-  // Bonus points award modal
-  const [showAwardBonusModal, setShowAwardBonusModal] = useState(false);
-  const [selectedStudentForBonus, setSelectedStudentForBonus] = useState<Student | null>(null);
 
   // Assign & Settings Modal for Exams
   const [selectedExamForAssign, setSelectedExamForAssign] = useState<Exam | null>(null);
@@ -93,6 +100,7 @@ export const ClassDetailView: React.FC = () => {
   const [studentCode, setStudentCode] = useState('');
   const [studentEmail, setStudentEmail] = useState('');
   const [studentPhone, setStudentPhone] = useState('');
+  const [studentBirthDate, setStudentBirthDate] = useState('');
   // Parent info states
   const [parentName, setParentName] = useState('');
   const [parentPhone, setParentPhone] = useState('');
@@ -102,14 +110,17 @@ export const ClassDetailView: React.FC = () => {
   const [showParentSection, setShowParentSection] = useState(false);
   const [deleteStudentId, setDeleteStudentId] = useState<string | null>(null);
 
-  // Excel Import Simulation Modal
+  // Excel Import Modal
   const [showExcelModal, setShowExcelModal] = useState(false);
-  const [rawExcelText, setRawExcelText] = useState(
-    `HS930\tĐào Minh Châu\tminhchau.dao@gmail.com\t0981112230
-HS931\tBùi Hoàng Yến\thoangyen.bui@gmail.com\t0981112231
-HS932\tTrần Tuấn Anh\ttuananh.tran@gmail.com\t0981112232
-HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
-  );
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  // Gradebook Tab Mode & Filters
+  const [gradebookStartDate, setGradebookStartDate] = useState<string>('2026-08-01');
+  const [gradebookEndDate, setGradebookEndDate] = useState<string>('2026-12-31');
+  const [gradebookSearch, setGradebookSearch] = useState('');
+  const [gradebookExamFilter, setGradebookExamFilter] = useState<string>('all');
+  const [gradebookRankFilter, setGradebookRankFilter] = useState<string>('all');
+  const [gradebookSort, setGradebookSort] = useState<'avg_desc' | 'avg_asc' | 'diligence_desc' | 'bonus_desc' | 'name_asc'>('avg_desc');
 
   useEffect(() => {
     const refresh = () => {
@@ -125,16 +136,6 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
     const unsub = store.subscribe(refresh);
     return unsub;
   }, [classId]);
-
-  const handleToggleArchive = () => {
-    if (!cls) return;
-    const nextStatus = cls.status === 'active' ? 'archived' : 'active';
-    store.updateClass(cls.id, { status: nextStatus });
-    success(
-      nextStatus === 'active' ? 'Khôi phục lớp học' : 'Lưu trữ lớp học',
-      `Lớp ${cls.name} hiện ở trạng thái ${nextStatus === 'active' ? 'Đang học' : 'Lưu trữ'}.`
-    );
-  };
 
   const handleDeleteClassConfirm = () => {
     if (cls) {
@@ -167,6 +168,7 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
       setStudentCode(st.code);
       setStudentEmail(st.email || '');
       setStudentPhone(st.phone || '');
+      setStudentBirthDate(st.birthDate || '');
       setParentName(st.parentName || '');
       setParentPhone(st.parentPhone || '');
       setParentEmail(st.parentEmail || '');
@@ -180,6 +182,7 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
       setStudentCode(`HS${Math.floor(900 + Math.random() * 99)}`);
       setStudentEmail('');
       setStudentPhone('');
+      setStudentBirthDate('');
       setParentName('');
       setParentPhone('');
       setParentEmail('');
@@ -200,6 +203,7 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
         code: studentCode || editingStudent.code,
         email: studentEmail.trim() || undefined,
         phone: studentPhone.trim() || undefined,
+        birthDate: studentBirthDate || undefined,
         parentName: parentName.trim() || undefined,
         parentPhone: parentPhone.trim() || undefined,
         parentEmail: parentEmail.trim() || undefined,
@@ -216,7 +220,7 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
         phone: studentPhone.trim() || undefined,
         classId: classId,
         status: 'active',
-        gender: 'other',
+        birthDate: studentBirthDate || undefined,
         parentName: parentName.trim() || undefined,
         parentPhone: parentPhone.trim() || undefined,
         parentEmail: parentEmail.trim() || undefined,
@@ -226,35 +230,6 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
       success('Thêm học sinh thành công', `Đã thêm ${studentName} vào lớp ${cls.name}`);
     }
     setShowStudentModal(false);
-  };
-
-  const handleImportExcel = () => {
-    if (!classId) return;
-    const lines = rawExcelText.trim().split('\n');
-    const parsed = lines
-      .map((l) => {
-        const parts = l.split(/\t|,/);
-        if (parts.length >= 2) {
-          return {
-            code: parts[0]?.trim() || `HS${Math.floor(900 + Math.random() * 99)}`,
-            fullName: parts[1]?.trim() || 'Học sinh mới',
-            email: parts[2]?.trim() || '',
-            phone: parts[3]?.trim() || '',
-            classId,
-            status: 'active' as const
-          };
-        }
-        return null;
-      })
-      .filter(Boolean) as Array<Omit<Student, 'id' | 'joinedAt'>>;
-
-    if (parsed.length > 0) {
-      store.addStudentsBatch(parsed);
-      success('Nhập thành công', `Đã thêm ${parsed.length} học sinh từ dữ liệu bảng tính.`);
-      setShowExcelModal(false);
-    } else {
-      error('Lỗi định dạng', 'Vui lòng kiểm tra lại cấu trúc dữ liệu theo mẫu.');
-    }
   };
 
   const handleDeleteStudentConfirm = () => {
@@ -273,7 +248,6 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
 
     const headers = [
       'STT',
-      'Mã học sinh',
       'Họ và tên',
       'Email',
       'Số điện thoại',
@@ -285,7 +259,6 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
 
     const rows = students.map((st, idx) => [
       String(idx + 1),
-      st.code,
       `"${st.fullName.replace(/"/g, '""')}"`,
       `"${(st.email || '').replace(/"/g, '""')}"`,
       `"${(st.phone || '').replace(/"/g, '""')}"`,
@@ -315,8 +288,13 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
   const filteredStudents = students.filter((s) =>
     s.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     s.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase()))
+    (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (s.phone && s.phone.includes(searchTerm)) ||
+    (s.parentName && s.parentName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (s.parentPhone && s.parentPhone.includes(searchTerm))
   );
+
+  const pendingStudents = cls ? store.getPendingStudentsByClassId(cls.id) : [];
 
   return (
     <div id="class-detail-view" className="space-y-6 max-w-7xl mx-auto">
@@ -331,74 +309,80 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
       </div>
 
       {/* Class Banner Card */}
-      <div className="p-6 bg-[#FFFDF9] rounded-2xl border border-[#EFE3DD] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold text-[#5C453C] tracking-tight">{cls.name}</h2>
-          <p className="text-xs text-[#9A8A85] max-w-2xl leading-relaxed">{cls.description}</p>
+      <div className="p-5 sm:p-6 bg-white rounded-2xl border border-slate-200/90 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-5 transition-all">
+        <div className="space-y-1.5">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+            {cls.name}
+          </h2>
+          <p className="text-xs text-slate-500 max-w-2xl leading-relaxed">
+            {cls.description || 'Chưa có mô tả lớp học'}
+          </p>
         </div>
 
         {/* Join code & Share Actions */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center gap-2 px-3.5 py-2 bg-[#F5F0EA] rounded-xl border border-[#EFE3DD] text-xs">
-            <span className="text-[#9A8A85] font-medium">Mã tham gia:</span>
-            <span className="font-mono font-bold text-[#5C453C] text-sm">{cls.joinCode}</span>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(cls.joinCode);
-                success('Đã sao chép', `Mã lớp: ${cls.joinCode}`);
-              }}
-              className="p-1 text-[#B68176] hover:text-[#A37066] cursor-pointer"
-              title="Sao chép mã"
-            >
-              <Copy className="w-3.5 h-3.5" />
-            </button>
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Join Code Box */}
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(cls.joinCode);
+              setCopiedCode(true);
+              success('Đã sao chép', `Mã lớp: ${cls.joinCode}`);
+              setTimeout(() => setCopiedCode(false), 2000);
+            }}
+            title="Nhấp để sao chép mã tham gia"
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100/90 text-slate-700 rounded-xl border border-slate-200 text-xs font-medium transition-all cursor-pointer group shadow-2xs active:scale-95"
+          >
+            <span className="text-slate-400 text-[11px]">Mã tham gia:</span>
+            <span className="font-mono font-bold text-slate-900 tracking-wider bg-white px-2 py-0.5 rounded-lg border border-slate-200/80 shadow-2xs">
+              {cls.joinCode}
+            </span>
+            {copiedCode ? (
+              <Check className="w-3.5 h-3.5 text-emerald-600 animate-in zoom-in-50 duration-150" />
+            ) : (
+              <Copy className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+            )}
+          </button>
 
+          {/* Action Buttons with consistent Icon + Label */}
           <button
             id="btn-export-students-csv"
             onClick={handleExportStudentListExcel}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FFFDF9] text-[#5C453C] hover:bg-[#F5F0EA] font-semibold text-xs rounded-xl border border-[#EFE3DD] shadow-xs transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white text-slate-700 hover:bg-slate-50 font-semibold text-xs rounded-xl border border-slate-200 shadow-2xs transition-all hover:border-slate-300 cursor-pointer active:scale-95"
             title="Xuất danh sách học sinh của lớp ra tệp CSV"
           >
-            <Download className="w-4 h-4 text-[#9A8A85]" />
+            <Download className="w-3.5 h-3.5 text-slate-500" />
             <span>Xuất CSV</span>
           </button>
 
           <button
             id="btn-show-class-qr"
             onClick={() => setShowQRModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-[#FFFDF9] hover:bg-[#F5F0EA] text-[#5C453C] text-xs font-bold rounded-xl transition-colors border border-[#EFE3DD] cursor-pointer shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white text-slate-700 hover:bg-slate-50 font-semibold text-xs rounded-xl border border-slate-200 shadow-2xs transition-all hover:border-slate-300 cursor-pointer active:scale-95"
+            title="Xem mã QR của lớp"
           >
-            <QrCode className="w-4 h-4 text-[#B68176]" />
+            <QrCode className="w-3.5 h-3.5 text-blue-600" />
             <span>Mã QR</span>
           </button>
 
           <button
             id="btn-edit-class"
             onClick={() => setShowEditClassModal(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-[#FFFDF9] hover:bg-[#F5F0EA] text-[#5C453C] text-xs font-bold rounded-xl transition-colors border border-[#EFE3DD] shadow-xs cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white text-slate-700 hover:bg-slate-50 font-semibold text-xs rounded-xl border border-slate-200 shadow-2xs transition-all hover:border-slate-300 cursor-pointer active:scale-95"
             title="Chỉnh sửa thông tin lớp học"
           >
-            <Edit className="w-4 h-4 text-[#B68176]" />
+            <Edit className="w-3.5 h-3.5 text-slate-500" />
             <span>Sửa lớp</span>
-          </button>
-
-          <button
-            id="btn-archive-class"
-            onClick={handleToggleArchive}
-            className="p-2 bg-[#FFFDF9] hover:bg-[#F5F0EA] text-[#9A8A85] hover:text-[#5C453C] rounded-xl transition-colors border border-[#EFE3DD] cursor-pointer shadow-xs"
-            title={cls.status === 'active' ? 'Lưu trữ lớp học' : 'Khôi phục lớp học'}
-          >
-            <Archive className="w-4 h-4" />
           </button>
 
           <button
             id="btn-delete-class"
             onClick={() => setShowDeleteClassModal(true)}
-            className="p-2 bg-[#FFFDF9] hover:bg-red-50 text-[#9A8A85] hover:text-red-600 rounded-xl transition-colors border border-[#EFE3DD] cursor-pointer shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-red-50 text-slate-500 hover:text-red-600 font-semibold text-xs rounded-xl border border-slate-200 hover:border-red-200 shadow-2xs transition-all cursor-pointer active:scale-95"
             title="Xóa lớp học này"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Xóa lớp</span>
           </button>
         </div>
       </div>
@@ -482,14 +466,26 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
               <Search className="w-4 h-4 text-[#9A8A85]" />
               <input
                 type="text"
-                placeholder="Tìm học sinh theo tên, mã HS, email..."
+                placeholder="Tìm học sinh theo tên, SĐT, email, phụ huynh..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="flex-1 bg-transparent text-xs text-[#5C453C] placeholder-[#9A8A85] outline-hidden"
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                id="btn-open-approval-modal"
+                onClick={() => setShowApprovalModal(true)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 font-bold text-xs rounded-xl border transition-all cursor-pointer ${
+                  pendingStudents.length > 0
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-sm'
+                    : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Duyệt học sinh{pendingStudents.length > 0 ? ` (${pendingStudents.length})` : ''}</span>
+              </button>
               <button
                 onClick={() => setShowExcelModal(true)}
                 className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs rounded-xl border border-emerald-200 transition-colors cursor-pointer"
@@ -513,113 +509,98 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
               <thead>
                 <tr className="bg-[#F5F0EA]/60 border-b border-[#EFE3DD] text-[#9A8A85] font-bold uppercase tracking-wider text-[11px]">
                   <th className="py-3.5 pl-4 text-center w-12">STT</th>
-                  <th className="py-3.5">Họ và tên</th>
-                  <th className="py-3.5">Liên hệ & Phụ huynh</th>
-                  <th className="py-3.5 text-center">Chuyên cần (10đ)</th>
-                  <th className="py-3.5 text-center">Sao thưởng</th>
-                  <th className="py-3.5 text-center">Đề đã nộp</th>
-                  <th className="py-3.5 text-center">Điểm TB Đề</th>
-                  <th className="py-3.5 text-right pr-4">Thao tác</th>
+                  <th className="py-3.5 px-3">HỌ VÀ TÊN</th>
+                  <th className="py-3.5 px-3">LIÊN HỆ & PHỤ HUYNH</th>
+                  <th className="py-3.5 px-3 text-center w-36">Học phí & Báo cáo</th>
+                  <th className="py-3.5 text-right pr-4 w-24">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#EFE3DD]/60">
-                {filteredStudents.map((st, idx) => {
-                  const studentSubs = submissions.filter((s) => s.studentId === st.id);
-                  const avg = studentSubs.length > 0
-                    ? (studentSubs.reduce((sum, s) => sum + s.totalScore, 0) / studentSubs.length).toFixed(1)
-                    : '---';
-
-                  const diligenceSummaries = store.getClassDiligenceSummaries(cls.id);
-                  const dSummary = diligenceSummaries.find((d) => d.student.id === st.id);
-
-                  return (
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-[#9A8A85]">
+                      <Users className="w-8 h-8 mx-auto text-[#B68176]/40 mb-2" />
+                      <p className="font-semibold text-xs text-[#5C453C]">Không tìm thấy học sinh nào phù hợp</p>
+                      <p className="text-[11px] text-[#9A8A85] mt-0.5">
+                        Thầy cô có thể thêm học sinh mới hoặc chia sẻ mã QR để học sinh tự ghi danh.
+                      </p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredStudents.map((st, idx) => {
+                    return (
                     <tr key={st.id} className="hover:bg-[#F9EAEA]/30 transition-colors">
-                      <td className="py-3 pl-4 text-center font-bold text-[#9A8A85]">{idx + 1}</td>
-                      <td className="py-3 font-bold text-[#5C453C] flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-[#F9EAEA] text-[#B68176] border border-[#EFE3DD] flex items-center justify-center font-bold text-xs">
-                          {st.fullName.charAt(0)}
-                        </div>
-                        <span>{st.fullName}</span>
-                      </td>
-                      <td className="py-3 text-[#9A8A85]">
-                        <div className="text-xs text-[#5C453C]">{st.phone || st.email || 'Chưa cập nhật'}</div>
-                        {(st.parentName || st.parentPhone) && (
-                          <div className="text-[11px] text-[#B68176] font-medium mt-0.5 flex items-center gap-1">
-                            <span className="font-bold">PH:</span>
-                            <span>{st.parentName || 'Phụ huynh'} {st.parentRelationship ? `(${st.parentRelationship})` : ''}</span>
-                            {st.parentPhone && <span className="font-mono text-[10px] text-[#5C453C]">· {st.parentPhone}</span>}
+                      <td className="py-3.5 pl-4 text-center font-bold text-[#9A8A85]">{idx + 1}</td>
+                      <td className="py-3.5 px-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                            {st.fullName.charAt(0)}
                           </div>
-                        )}
+                          <span className="font-bold text-[#5C453C] text-xs">{st.fullName}</span>
+                        </div>
                       </td>
-                      {/* Diligence Score */}
-                      <td className="py-3 text-center">
-                        {dSummary ? (
-                          <span
-                            className={`px-2 py-0.5 rounded-lg font-black text-xs ${
-                              dSummary.diligenceScore >= 9.0
-                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                : dSummary.diligenceScore >= 7.5
-                                ? 'bg-[#F9EAEA] text-[#B68176] border border-[#EFE3DD]'
-                                : 'bg-amber-50 text-amber-800 border border-amber-200'
-                            }`}
-                          >
-                            {dSummary.diligenceScore.toFixed(1)}đ
-                          </span>
-                        ) : (
-                          <span className="text-[#9A8A85]">10.0đ</span>
-                        )}
+                      <td className="py-3.5 px-3">
+                        <div className="space-y-0.5 text-xs">
+                          {st.phone ? (
+                            <div className="font-mono text-[#5C453C] font-semibold text-xs">
+                              {st.phone}
+                            </div>
+                          ) : st.email ? (
+                            <div className="text-[#9A8A85] text-[11px]">{st.email}</div>
+                          ) : (
+                            <span className="text-[#9A8A85] italic text-[11px]">Chưa có SĐT</span>
+                          )}
+                          {(st.parentName || st.parentPhone) && (
+                            <div className="text-xs flex items-center gap-1.5 flex-wrap">
+                              <span className="text-blue-600 font-bold">PH:</span>
+                              <span className="font-semibold text-blue-600">
+                                {st.parentName || 'Phụ huynh'} {st.parentRelationship ? `(${st.parentRelationship})` : ''}
+                              </span>
+                              {st.parentPhone && (
+                                <>
+                                  <span className="text-[#9A8A85]">·</span>
+                                  <span className="font-mono text-[#5C453C] font-medium">{st.parentPhone}</span>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
-                      {/* Bonus Stars */}
-                      <td className="py-3 text-center">
-                        <span className="inline-flex items-center gap-0.5 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 font-bold text-xs border border-amber-200">
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-500" />
-                          <span>+{dSummary ? dSummary.bonusPoints : 0}</span>
-                        </span>
-                      </td>
-                      <td className="py-3 text-center text-[#5C453C] font-medium">{studentSubs.length} bài</td>
-                      <td className="py-3 text-center font-extrabold text-[#B68176]">{avg}</td>
-                      <td className="py-3 text-right pr-4 space-x-1">
+                      <td className="py-3.5 px-3 text-center">
                         <button
+                          type="button"
                           onClick={() => {
                             setSelectedStudentForReport(st);
                             setShowMonthlyReportModal(true);
                           }}
-                          className="px-2 py-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors inline-flex items-center gap-1 cursor-pointer"
-                          title="Xem & xuất phiếu báo cáo học tập tháng cho học sinh này"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-all cursor-pointer shadow-2xs active:scale-95"
+                          title="Xem & xuất phiếu học phí và báo cáo học tập tháng cho học sinh này"
                         >
-                          <FileText className="w-3 h-3 text-emerald-600" />
-                          <span>Phiếu</span>
+                          <FileText className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                          <span>Báo cáo</span>
                         </button>
-                        <button
-                          onClick={() => {
-                            setSelectedStudentForBonus(st);
-                            setShowAwardBonusModal(true);
-                          }}
-                          className="px-2 py-1 text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 rounded-lg border border-amber-200 transition-colors inline-flex items-center gap-1 cursor-pointer"
-                          title="Thưởng sao thi đua"
-                        >
-                          <Sparkles className="w-3 h-3 text-amber-500" />
-                          <span>+Sao</span>
-                        </button>
+                      </td>
+                      <td className="py-3.5 text-right pr-4 space-x-1">
                         <button
                           onClick={() => openStudentModal(st)}
-                          className="p-1.5 text-[#9A8A85] hover:text-[#5C453C] rounded-lg hover:bg-[#F5F0EA] transition-colors cursor-pointer"
-                          title="Sửa thông tin"
+                          className="p-1.5 text-[#9A8A85] hover:text-[#5C453C] rounded-lg hover:bg-[#F5F0EA] transition-colors cursor-pointer inline-flex items-center justify-center"
+                          title="Chỉnh sửa thông tin học sinh"
                         >
                           <Edit className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => setDeleteStudentId(st.id)}
-                          className="p-1.5 text-[#9A8A85] hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                          title="Xóa học sinh"
+                          className="p-1.5 text-[#9A8A85] hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer inline-flex items-center justify-center"
+                          title="Xóa học sinh khỏi lớp"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </td>
                     </tr>
                   );
-                })}
-              </tbody>
+                })
+              )}
+            </tbody>
             </table>
           </div>
         </div>
@@ -709,236 +690,491 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
       )}
 
       {/* Tab: Gradebook Matrix */}
-      {activeTab === 'gradebook' && (
-        <div className="bg-[#FFFDF9] rounded-2xl border border-[#EFE3DD] shadow-xs overflow-x-auto p-4 space-y-4 font-sans">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-extrabold text-[#5C453C] text-sm">Bảng điểm tổng hợp lớp {cls.name}</h3>
-              <p className="text-xs text-[#9A8A85]">Bao gồm ma trận điểm kiểm tra, điểm chuyên cần và sao thi đua</p>
+      {activeTab === 'gradebook' && (() => {
+        const diligenceSummaries = store.getClassDiligenceSummaries(cls.id);
+
+        // Filter exams by type, selected exam ID, and time range
+        const displayedExamsList = exams.filter((ex) => {
+          const isHomework = ex.title.toLowerCase().includes('bài tập') || ex.title.toLowerCase().includes('btvn');
+
+          // 1. Exam / Type Filter
+          if (gradebookExamFilter === 'exam_only' && isHomework) return false;
+          if (gradebookExamFilter === 'homework_only' && !isHomework) return false;
+          if (gradebookExamFilter !== 'all' && gradebookExamFilter !== 'exam_only' && gradebookExamFilter !== 'homework_only') {
+            if (ex.id !== gradebookExamFilter) return false;
+          }
+
+          // 2. Time Range Filter
+          if (gradebookStartDate || gradebookEndDate) {
+            const rawDate = ex.openTime || ex.createdAt || '2026-08-15';
+            const exDate = rawDate.split('T')[0];
+            if (gradebookStartDate && exDate < gradebookStartDate) {
+              const hasSub = submissions.some(
+                (s) => s.examId === ex.id && s.studentClassId === cls.id && s.submittedAt && s.submittedAt.split('T')[0] >= gradebookStartDate
+              );
+              if (!hasSub) return false;
+            }
+            if (gradebookEndDate && exDate > gradebookEndDate) {
+              const hasSub = submissions.some(
+                (s) => s.examId === ex.id && s.studentClassId === cls.id && s.submittedAt && s.submittedAt.split('T')[0] <= gradebookEndDate
+              );
+              if (!hasSub) return false;
+            }
+          }
+
+          return true;
+        });
+
+        // Precompute stats for each student
+        const studentStats = students.map((st) => {
+          let totalEarned = 0;
+          let testCount = 0;
+          const examScores: Record<string, number | null> = {};
+
+          displayedExamsList.forEach((ex) => {
+            const sub = submissions.find((s) => s.examId === ex.id && s.studentId === st.id);
+            if (sub) {
+              totalEarned += sub.totalScore;
+              testCount++;
+              examScores[ex.id] = sub.totalScore;
+            } else {
+              examScores[ex.id] = null;
+            }
+          });
+
+          const avg = testCount > 0 ? totalEarned / testCount : null;
+          const dSummary = diligenceSummaries.find((d) => d.student.id === st.id);
+          const diligenceScore = dSummary ? dSummary.diligenceScore : 10.0;
+          const bonusPoints = dSummary ? dSummary.bonusPoints : 0;
+
+          let rankCategory: 'gioi' | 'kha' | 'tb' | 'yeu' | 'chuanop' = 'chuanop';
+          if (avg !== null) {
+            if (avg >= 8.0) rankCategory = 'gioi';
+            else if (avg >= 6.5) rankCategory = 'kha';
+            else if (avg >= 5.0) rankCategory = 'tb';
+            else rankCategory = 'yeu';
+          }
+
+          return {
+            student: st,
+            testCount,
+            totalEarned,
+            avg,
+            avgFormatted: avg !== null ? avg.toFixed(1) : '---',
+            examScores,
+            diligenceScore,
+            bonusPoints,
+            rankCategory,
+            dSummary
+          };
+        });
+
+        // Filter students
+        const filteredStudentStats = studentStats.filter((item) => {
+          const matchSearch =
+            item.student.fullName.toLowerCase().includes(gradebookSearch.toLowerCase()) ||
+            item.student.code.toLowerCase().includes(gradebookSearch.toLowerCase()) ||
+            (item.student.phone || '').toLowerCase().includes(gradebookSearch.toLowerCase());
+
+          if (!matchSearch) return false;
+
+          if (gradebookRankFilter !== 'all') {
+            if (item.rankCategory !== gradebookRankFilter) return false;
+          }
+
+          return true;
+        });
+
+        // Sort students
+        filteredStudentStats.sort((a, b) => {
+          if (gradebookSort === 'avg_desc') {
+            if (a.avg === null && b.avg === null) return 0;
+            if (a.avg === null) return 1;
+            if (b.avg === null) return -1;
+            return b.avg - a.avg;
+          }
+          if (gradebookSort === 'avg_asc') {
+            if (a.avg === null && b.avg === null) return 0;
+            if (a.avg === null) return 1;
+            if (b.avg === null) return -1;
+            return a.avg - b.avg;
+          }
+          if (gradebookSort === 'diligence_desc') {
+            return b.diligenceScore - a.diligenceScore;
+          }
+          if (gradebookSort === 'name_asc') {
+            return a.student.fullName.localeCompare(b.student.fullName, 'vi');
+          }
+          return 0;
+        });
+
+        return (
+          <div className="space-y-3 font-sans">
+            {/* Filter & Action Toolbar */}
+            <div className="bg-[#FFFDF9] p-3 sm:p-3.5 rounded-2xl border border-[#EFE3DD] shadow-xs">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+                {/* Search, Filter & TimeRange */}
+                <div className="flex flex-wrap items-center gap-2 flex-1">
+                  {/* 1. Search */}
+                  <div className="flex items-center gap-2 p-2 px-3 bg-[#FAF7F2] rounded-xl border border-[#EFE3DD] flex-1 min-w-[180px] max-w-xs shadow-2xs">
+                    <Search className="w-4 h-4 text-[#9A8A85] shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Tìm học sinh theo tên, SĐT..."
+                      value={gradebookSearch}
+                      onChange={(e) => setGradebookSearch(e.target.value)}
+                      className="flex-1 bg-transparent text-xs text-[#5C453C] placeholder-[#9A8A85] outline-hidden"
+                    />
+                    {gradebookSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setGradebookSearch('')}
+                        className="text-[#9A8A85] hover:text-[#5C453C]"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 2. Bộ lọc Bài tập / Đề thi */}
+                  <div className="flex items-center gap-1.5 p-1.5 px-2.5 bg-[#FAF7F2] rounded-xl border border-[#EFE3DD] text-xs">
+                    <FileText className="w-3.5 h-3.5 text-[#B68176] shrink-0" />
+                    <select
+                      value={gradebookExamFilter}
+                      onChange={(e) => setGradebookExamFilter(e.target.value)}
+                      className="bg-transparent text-xs font-bold text-[#5C453C] outline-hidden cursor-pointer"
+                    >
+                      <option value="all">Tất cả</option>
+                      <option value="exam_only">Đề thi</option>
+                      <option value="homework_only">Bài tập</option>
+                    </select>
+                  </div>
+
+                  {/* 3. Time Range Filter (Từ ngày - Đến ngày) */}
+                  <div className="flex items-center gap-1.5 p-1.5 px-2.5 bg-[#FAF7F2] rounded-xl border border-[#EFE3DD] text-xs">
+                    <Calendar className="w-3.5 h-3.5 text-[#B68176] shrink-0" />
+                    <span className="text-[11px] font-bold text-[#9A8A85]">Từ:</span>
+                    <input
+                      type="date"
+                      value={gradebookStartDate}
+                      onChange={(e) => setGradebookStartDate(e.target.value)}
+                      className="bg-transparent text-xs font-bold text-[#5C453C] outline-hidden cursor-pointer"
+                    />
+                    <span className="text-[11px] font-bold text-[#9A8A85]">Đến:</span>
+                    <input
+                      type="date"
+                      value={gradebookEndDate}
+                      onChange={(e) => setGradebookEndDate(e.target.value)}
+                      className="bg-transparent text-xs font-bold text-[#5C453C] outline-hidden cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* Reset & Export CSV button */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {(gradebookSearch || gradebookExamFilter !== 'all' || gradebookStartDate !== '2026-08-01' || gradebookEndDate !== '2026-12-31') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGradebookSearch('');
+                        setGradebookExamFilter('all');
+                        setGradebookStartDate('2026-08-01');
+                        setGradebookEndDate('2026-12-31');
+                      }}
+                      className="px-2.5 py-1.5 text-xs text-[#9A8A85] hover:text-[#5C453C] hover:bg-[#FAF7F2] rounded-xl border border-transparent hover:border-[#EFE3DD] transition-all cursor-pointer"
+                    >
+                      Đặt lại
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      const rows = [
+                        [
+                          'Họ và tên',
+                          'Chuyên cần (10đ)',
+                          ...displayedExamsList.map((ex) => ex.title)
+                        ],
+                        ...filteredStudentStats.map((item) => {
+                          const scores = displayedExamsList.map((ex) => {
+                            const val = item.examScores[ex.id];
+                            return val !== null ? val : '-';
+                          });
+                          return [
+                            item.student.fullName,
+                            item.diligenceScore.toFixed(1),
+                            ...scores
+                          ];
+                        })
+                      ];
+                      const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + rows.map((e) => e.join(',')).join('\n');
+                      const encodedUri = encodeURI(csvContent);
+                      const link = document.createElement('a');
+                      link.setAttribute('href', encodedUri);
+                      link.setAttribute('download', `BangDiem_${cls.name.replace(/\s+/g, '_')}.csv`);
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      info('Xuất bảng điểm', `Đã tải xuống dữ liệu ${filteredStudentStats.length} học sinh.`);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-[#F5F0EA] hover:bg-[#EFE3DD] text-[#5C453C] text-xs font-bold rounded-xl border border-[#EFE3DD] cursor-pointer transition-colors shadow-2xs"
+                  >
+                    <Download className="w-3.5 h-3.5 text-[#9A8A85]" />
+                    <span>Xuất CSV</span>
+                  </button>
+                </div>
+              </div>
             </div>
-            <button
-              onClick={() => {
-                const diligenceSummaries = store.getClassDiligenceSummaries(cls.id);
-                const rows = [
-                  [
-                    'Mã HS',
-                    'Họ và tên',
-                    ...exams.map((ex) => ex.title),
-                    'Điểm TB Đề',
-                    'Chuyên cần (10đ)',
-                    'Sao thưởng',
-                    'Xếp loại'
-                  ],
-                  ...students.map((st) => {
-                    const d = diligenceSummaries.find((ds) => ds.student.id === st.id);
-                    let sum = 0;
-                    let cnt = 0;
-                    const scores = exams.map((ex) => {
-                      const sub = submissions.find((s) => s.examId === ex.id && s.studentId === st.id);
-                      if (sub) {
-                        sum += sub.totalScore;
-                        cnt++;
-                        return sub.totalScore;
-                      }
-                      return '-';
-                    });
-                    const avg = cnt > 0 ? (sum / cnt).toFixed(1) : '-';
-                    return [
-                      st.code,
-                      st.fullName,
-                      ...scores,
-                      avg,
-                      d ? d.diligenceScore.toFixed(1) : '10.0',
-                      d ? d.bonusPoints : 0,
-                      d ? d.rankTier : 'Tốt'
-                    ];
-                  })
-                ];
-                const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + rows.map((e) => e.join(',')).join('\n');
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement('a');
-                link.setAttribute('href', encodedUri);
-                link.setAttribute('download', `BangDiemTongHop_${cls.name.replace(/\s+/g, '_')}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                info('Xuất bảng điểm', 'Đã tải xuống tệp dữ liệu điểm tổng hợp.');
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F5F0EA] hover:bg-[#EFE3DD] text-[#5C453C] text-xs font-bold rounded-xl border border-[#EFE3DD] cursor-pointer transition-colors"
-            >
-              <Download className="w-3.5 h-3.5 text-[#9A8A85]" />
-              <span>Xuất CSV</span>
-            </button>
-          </div>
 
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-[#F5F0EA] border-b border-[#EFE3DD] text-[#5C453C] font-bold">
-                <th className="py-3 px-3">Mã HS</th>
-                <th className="py-3 px-3 min-w-[140px]">Họ và tên</th>
-                {exams.map((ex) => (
-                  <th key={ex.id} className="py-3 px-3 text-center min-w-[120px]">
-                    <div className="truncate max-w-[120px]" title={ex.title}>{ex.title}</div>
-                    <span className="text-[10px] text-[#9A8A85] font-normal">Thang {ex.maxScore}đ</span>
-                  </th>
-                ))}
-                <th className="py-3 px-3 text-center bg-[#F9EAEA] text-[#B68176] font-extrabold">Điểm TB Đề</th>
-                <th className="py-3 px-3 text-center bg-[#FAF4F0] text-[#5C453C] font-extrabold min-w-[110px]">Chuyên cần</th>
-                <th className="py-3 px-3 text-center bg-amber-50/70 text-amber-900 font-extrabold min-w-[90px]">Sao thưởng</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#EFE3DD]">
-              {students.map((st) => {
-                let totalEarned = 0;
-                let testCount = 0;
-                const dSummary = store.getClassDiligenceSummaries(cls.id).find((d) => d.student.id === st.id);
+            {/* Main Gradebook Matrix Table with Fixed Left Columns & Horizontal Scroll */}
+            <div className="bg-[#FFFDF9] rounded-2xl border border-[#EFE3DD] shadow-xs overflow-hidden">
+              <div className="overflow-x-auto max-w-full">
+                <table className="w-full text-left text-xs border-collapse min-w-[720px]">
+                  <thead>
+                    <tr className="bg-[#F5F0EA] border-b border-[#EFE3DD] text-[#5C453C] font-bold text-[11px]">
+                      {/* Sticky STT Column */}
+                      <th className="py-3.5 px-3 text-center w-12 min-w-[48px] sticky left-0 z-30 bg-[#F5F0EA] border-r border-[#EFE3DD]/60">
+                        STT
+                      </th>
 
-                return (
-                  <tr key={st.id} className="hover:bg-[#F5F0EA]/60 transition-colors">
-                    <td className="py-2.5 px-3 font-mono font-bold text-[#B68176]">{st.code}</td>
-                    <td className="py-2.5 px-3 font-bold text-[#5C453C]">{st.fullName}</td>
-                    {exams.map((ex) => {
-                      const sub = submissions.find((s) => s.examId === ex.id && s.studentId === st.id);
-                      if (sub) {
-                        totalEarned += sub.totalScore;
-                        testCount++;
-                      }
-                      return (
-                        <td key={ex.id} className="py-2.5 px-3 text-center">
-                          {sub ? (
+                      {/* Sticky Họ và tên Column */}
+                      <th className="py-3.5 px-3 min-w-[170px] sticky left-12 z-30 bg-[#F5F0EA] border-r border-[#EFE3DD] shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]">
+                        Họ và tên
+                      </th>
+
+                      {/* Summary Column: Chuyên cần (ở đầu tiên sau cột họ tên) */}
+                      <th className="py-3.5 px-3 text-center min-w-[110px] border-r border-[#EFE3DD]/60 bg-[#F5F0EA]">
+                        Chuyên cần
+                      </th>
+
+                      {/* Exam / Homework Columns */}
+                      {displayedExamsList.length === 0 ? (
+                        <th className="py-3.5 px-4 text-center text-[#9A8A85] font-normal border-r border-[#EFE3DD]">
+                          Chưa có bài tập hoặc đề thi nào phù hợp với bộ lọc
+                        </th>
+                      ) : (
+                        displayedExamsList.map((ex) => {
+                          const isHomework = ex.title.toLowerCase().includes('bài tập') || ex.title.toLowerCase().includes('btvn');
+                          const examSubs = submissions.filter((s) => s.examId === ex.id && s.studentClassId === cls.id);
+
+                          return (
+                            <th key={ex.id} className="py-3 px-3 text-center min-w-[160px] max-w-[220px] border-r border-[#EFE3DD]/60 bg-[#FAF7F2]/40">
+                              <div className="flex items-center justify-center mb-1">
+                                <span className={`text-[9px] px-2 py-0.5 rounded-md font-extrabold uppercase tracking-wider ${
+                                  isHomework
+                                    ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                                    : 'bg-indigo-100 text-indigo-900 border border-indigo-200'
+                                }`}>
+                                  {isHomework ? 'Bài tập' : 'Đề thi'}
+                                </span>
+                              </div>
+                              <div className="truncate font-bold text-[#5C453C] max-w-[200px] mx-auto" title={ex.title}>
+                                {ex.title}
+                              </div>
+                              <div className="flex items-center justify-center gap-1 text-[10px] text-[#9A8A85] font-normal mt-0.5">
+                                <span>Thang {ex.maxScore}đ</span>
+                                <span>•</span>
+                                <span className="text-emerald-700 font-semibold">{examSubs.length}/{students.length} nộp</span>
+                              </div>
+                            </th>
+                          );
+                        })
+                      )}
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-[#EFE3DD]/70">
+                    {filteredStudentStats.length === 0 ? (
+                      <tr>
+                        <td colSpan={3 + Math.max(1, displayedExamsList.length)} className="py-12 text-center text-[#9A8A85]">
+                          <Award className="w-8 h-8 mx-auto text-[#B68176]/40 mb-2" />
+                          <p className="font-semibold text-xs text-[#5C453C]">Không có dữ liệu điểm phù hợp</p>
+                          <p className="text-[11px] text-[#9A8A85] mt-0.5">
+                            Thầy cô có thể thử xóa tìm kiếm hoặc chọn bộ lọc đề thi khác.
+                          </p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredStudentStats.map((item, idx) => (
+                        <tr key={item.student.id} className="hover:bg-[#F9EAEA]/30 transition-colors group">
+                          {/* Sticky STT Column */}
+                          <td className="py-2.5 px-3 text-center font-bold text-[#9A8A85] sticky left-0 z-20 bg-white group-hover:bg-[#FAF4F0] border-r border-[#EFE3DD]/60">
+                            {idx + 1}
+                          </td>
+
+                          {/* Sticky Họ và tên Column */}
+                          <td className="py-2.5 px-3 sticky left-12 z-20 bg-white group-hover:bg-[#FAF4F0] border-r border-[#EFE3DD] shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-[#F9EAEA] text-[#B68176] border border-[#EFE3DD] flex items-center justify-center font-bold text-[11px] shrink-0">
+                                {item.student.fullName.charAt(0)}
+                              </div>
+                              <span className="font-bold text-[#5C453C] truncate max-w-[140px]" title={item.student.fullName}>
+                                {item.student.fullName}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* Diligence Score (Chuyên cần ngay sau họ tên) */}
+                          <td className="py-2.5 px-3 text-center border-r border-[#EFE3DD]/60">
                             <span
-                              className={`px-2 py-0.5 rounded-md font-bold text-xs ${
-                                sub.totalScore >= 8
+                              className={`inline-block min-w-[36px] px-2 py-0.5 rounded-md font-extrabold text-xs text-center ${
+                                item.diligenceScore >= 8.0
                                   ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                                  : sub.totalScore >= 5
-                                  ? 'bg-[#F5F0EA] text-[#5C453C] border border-[#EFE3DD]'
-                                  : 'bg-[#F9EAEA] text-[#B68176] border border-[#F0D5D0]'
+                                  : item.diligenceScore >= 6.5
+                                  ? 'bg-sky-50 text-sky-800 border border-sky-200'
+                                  : item.diligenceScore >= 5.0
+                                  ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                  : 'bg-rose-50 text-rose-800 border border-rose-200'
                               }`}
                             >
-                              {sub.totalScore}
+                              {item.diligenceScore.toFixed(1)}
                             </span>
+                          </td>
+
+                          {/* Exam / Homework Scores */}
+                          {displayedExamsList.length === 0 ? (
+                            <td className="py-2.5 px-4 text-center text-[#9A8A85] italic border-r border-[#EFE3DD]">
+                              -
+                            </td>
                           ) : (
-                            <span className="text-[#9A8A85] text-xs">-</span>
+                            displayedExamsList.map((ex) => {
+                              const score = item.examScores[ex.id];
+                              return (
+                                <td key={ex.id} className="py-2.5 px-3 text-center border-r border-[#EFE3DD]/60">
+                                  {score !== null ? (
+                                    <span
+                                      className={`inline-block min-w-[36px] px-2 py-0.5 rounded-md font-extrabold text-xs text-center ${
+                                        score >= 8.0
+                                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                          : score >= 6.5
+                                          ? 'bg-sky-50 text-sky-800 border border-sky-200'
+                                          : score >= 5.0
+                                          ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                          : 'bg-rose-50 text-rose-800 border border-rose-200'
+                                      }`}
+                                    >
+                                      {score}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] text-[#9A8A85] font-mono">-</span>
+                                  )}
+                                </td>
+                              );
+                            })
                           )}
-                        </td>
-                      );
-                    })}
-                    <td className="py-2.5 px-3 text-center font-black font-mono text-[#B68176] bg-[#F9EAEA]/40">
-                      {testCount > 0 ? (totalEarned / testCount).toFixed(1) : '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-black font-mono bg-[#FAF4F0]">
-                      <span className="text-[#5C453C]">
-                        {dSummary ? dSummary.diligenceScore.toFixed(1) : '10.0'}đ
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-bold bg-amber-50/40">
-                      <span className="inline-flex items-center gap-1 text-amber-900">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-500" />
-                        <span>+{dSummary ? dSummary.bonusPoints : 0}</span>
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Add / Edit Student Modal */}
       {showStudentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#5C453C]/50 backdrop-blur-xs font-sans animate-in fade-in duration-150">
-          <div className="w-full max-w-md bg-[#FFFDF9] rounded-2xl shadow-2xl border border-[#EFE3DD] overflow-hidden max-h-[92vh] flex flex-col">
-            <div className="p-4 sm:p-5 border-b border-[#EFE3DD] bg-[#F5F0EA] flex items-center justify-between">
-              <h3 className="text-base font-extrabold text-[#5C453C]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs font-sans animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden max-h-[92vh] flex flex-col">
+            <div className="p-4 sm:p-5 border-b border-slate-100 bg-white flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900">
                 {editingStudent ? 'Sửa thông tin học sinh' : 'Thêm học sinh mới'}
               </h3>
               <button
                 type="button"
                 onClick={() => setShowStudentModal(false)}
-                className="w-7 h-7 rounded-full flex items-center justify-center text-[#9A8A85] hover:bg-[#EFE3DD] hover:text-[#5C453C] transition-colors cursor-pointer"
+                className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             <form onSubmit={handleSaveStudent} className="p-4 sm:p-5 space-y-3.5 text-xs overflow-y-auto">
               <div>
-                <label className="font-bold text-[#5C453C] block mb-1">Họ và tên học sinh *</label>
+                <label className="font-bold text-slate-800 block mb-1.5 text-xs">
+                  Họ và tên học sinh <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="Ví dụ: Trần Bảo Nam"
                   value={studentName}
                   onChange={(e) => setStudentName(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#EFE3DD] rounded-xl text-xs bg-[#FFFDF9] text-[#5C453C] focus:ring-2 focus:ring-[#B68176] outline-hidden"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-hidden placeholder:text-slate-400"
                 />
               </div>
+
               <div>
-                <label className="font-bold text-[#5C453C] block mb-1">Email học sinh / liên hệ</label>
+                <label className="font-bold text-slate-800 block mb-1.5 text-xs">
+                  Email học sinh
+                </label>
                 <input
                   type="email"
                   placeholder="baonam@gmail.com"
                   value={studentEmail}
                   onChange={(e) => setStudentEmail(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#EFE3DD] rounded-xl text-xs bg-[#FFFDF9] text-[#5C453C] focus:ring-2 focus:ring-[#B68176] outline-hidden"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-hidden placeholder:text-slate-400"
                 />
               </div>
+
               <div>
-                <label className="font-bold text-[#5C453C] block mb-1">Số điện thoại học sinh</label>
+                <label className="font-bold text-slate-800 block mb-1.5 text-xs">
+                  Số điện thoại học sinh
+                </label>
                 <input
                   type="tel"
                   placeholder="0981 112 201"
                   value={studentPhone}
                   onChange={(e) => setStudentPhone(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#EFE3DD] rounded-xl text-xs bg-[#FFFDF9] text-[#5C453C] focus:ring-2 focus:ring-[#B68176] outline-hidden"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-hidden placeholder:text-slate-400 font-mono"
                 />
               </div>
 
               {/* Mở rộng thông tin phụ huynh */}
-              <div className="pt-2 border-t border-[#EFE3DD]">
+              <div className="pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowParentSection(!showParentSection)}
-                  className="w-full flex items-center justify-between p-2.5 rounded-xl bg-[#F5F0EA]/80 hover:bg-[#F5F0EA] text-[#5C453C] transition-colors cursor-pointer border border-[#EFE3DD]"
+                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#FAF6F0] hover:bg-[#F5EFEB] text-slate-800 transition-colors cursor-pointer border border-[#EFE3DD]/80"
                 >
-                  <span className="flex items-center gap-1.5 font-bold text-xs">
-                    <Users className="w-4 h-4 text-[#B68176]" />
-                    <span>Thông tin phụ huynh</span>
+                  <div className="flex items-center gap-2 font-bold text-xs">
+                    <Users className="w-4 h-4 text-blue-600" />
+                    <span className="text-slate-900 font-bold">Thông tin phụ huynh</span>
                     {(parentName || parentPhone) && (
                       <span className="px-1.5 py-0.5 text-[10px] bg-emerald-100 text-emerald-800 rounded-md font-bold">
                         Đã điền
                       </span>
                     )}
-                  </span>
-                  <span className="text-[11px] text-[#B68176] font-semibold flex items-center gap-1">
+                  </div>
+                  <div className="text-xs text-blue-600 font-semibold flex items-center gap-1">
                     <span>Xem thêm</span>
                     <ChevronDown
                       className={`w-3.5 h-3.5 transition-transform duration-200 ${
                         showParentSection ? 'rotate-180' : ''
                       }`}
                     />
-                  </span>
+                  </div>
                 </button>
 
                 {showParentSection && (
-                  <div className="mt-2.5 p-3.5 bg-[#FAF7F2] rounded-xl border border-[#EFE3DD] space-y-3 animate-in fade-in duration-150">
+                  <div className="mt-2.5 p-3.5 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-3 animate-in fade-in duration-150">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <div>
-                        <label className="font-bold text-[#5C453C] block mb-1">Họ tên phụ huynh</label>
+                        <label className="font-bold text-slate-700 block mb-1">Họ tên phụ huynh</label>
                         <input
                           type="text"
                           placeholder="Ví dụ: Bác Trần Văn Hùng"
                           value={parentName}
                           onChange={(e) => setParentName(e.target.value)}
-                          className="w-full px-3 py-2 border border-[#EFE3DD] rounded-xl text-xs bg-[#FFFDF9] text-[#5C453C] focus:ring-2 focus:ring-[#B68176] outline-hidden"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-hidden"
                         />
                       </div>
                       <div>
-                        <label className="font-bold text-[#5C453C] block mb-1">Mối quan hệ</label>
+                        <label className="font-bold text-slate-700 block mb-1">Mối quan hệ</label>
                         <select
                           value={parentRelationship}
                           onChange={(e) => setParentRelationship(e.target.value)}
-                          className="w-full px-3 py-2 border border-[#EFE3DD] rounded-xl text-xs bg-[#FFFDF9] text-[#5C453C] focus:ring-2 focus:ring-[#B68176] outline-hidden"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-hidden"
                         >
                           <option value="Bố">Bố</option>
                           <option value="Mẹ">Mẹ</option>
@@ -950,23 +1186,23 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <div>
-                        <label className="font-bold text-[#5C453C] block mb-1">SĐT phụ huynh (Zalo)</label>
+                        <label className="font-bold text-slate-700 block mb-1">SĐT phụ huynh (Zalo)</label>
                         <input
                           type="tel"
                           placeholder="0912 345 678"
                           value={parentPhone}
                           onChange={(e) => setParentPhone(e.target.value)}
-                          className="w-full px-3 py-2 border border-[#EFE3DD] rounded-xl text-xs bg-[#FFFDF9] text-[#5C453C] focus:ring-2 focus:ring-[#B68176] outline-hidden"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-hidden"
                         />
                       </div>
                       <div>
-                        <label className="font-bold text-[#5C453C] block mb-1">Email phụ huynh</label>
+                        <label className="font-bold text-slate-700 block mb-1">Email phụ huynh</label>
                         <input
                           type="email"
                           placeholder="phuhuynh@gmail.com"
                           value={parentEmail}
                           onChange={(e) => setParentEmail(e.target.value)}
-                          className="w-full px-3 py-2 border border-[#EFE3DD] rounded-xl text-xs bg-[#FFFDF9] text-[#5C453C] focus:ring-2 focus:ring-[#B68176] outline-hidden"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-hidden"
                         />
                       </div>
                     </div>
@@ -974,17 +1210,17 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
                 )}
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#EFE3DD]">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowStudentModal(false)}
-                  className="px-4 py-2 bg-[#F5F0EA] hover:bg-[#EFE3DD] text-[#5C453C] font-semibold rounded-xl transition-colors cursor-pointer border border-[#EFE3DD]"
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors cursor-pointer text-xs"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#B68176] hover:bg-[#A37066] text-white font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                  className="px-5 py-2.5 bg-[#2563EB] hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs transition-colors cursor-pointer text-xs"
                 >
                   {editingStudent ? 'Lưu thay đổi' : 'Thêm học sinh'}
                 </button>
@@ -994,48 +1230,13 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
         </div>
       )}
 
-      {/* Excel Simulation Modal */}
-      {showExcelModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
-                <h3 className="text-base font-bold text-slate-900">Nhập danh sách học sinh từ Excel</h3>
-              </div>
-            </div>
-
-            <div className="p-5 space-y-3 text-xs">
-              <p className="text-slate-600 leading-relaxed">
-                Dán dữ liệu từ bảng tính Excel theo các cột: <strong>Mã HS | Họ và tên | Email | SĐT</strong> (ngăn cách bằng phím Tab hoặc dấu phẩy).
-              </p>
-              <textarea
-                rows={6}
-                value={rawExcelText}
-                onChange={(e) => setRawExcelText(e.target.value)}
-                className="w-full p-3 font-mono text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
-              />
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowExcelModal(false)}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 font-medium rounded-lg"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="button"
-                  onClick={handleImportExcel}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-xs"
-                >
-                  Nhập vào danh sách
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Excel Import Modal */}
+      <StudentExcelImportModal
+        isOpen={showExcelModal}
+        onClose={() => setShowExcelModal(false)}
+        classId={classId!}
+        className={cls?.name}
+      />
 
       {/* QR Modal */}
       {showQRModal && (
@@ -1067,23 +1268,6 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
         onClose={() => setShowEditClassModal(false)}
         onSuccess={(updated) => setCls(updated)}
       />
-
-      {/* Award Bonus Modal */}
-      {showAwardBonusModal && (
-        <AwardBonusModal
-          cls={cls}
-          students={students}
-          initialStudent={selectedStudentForBonus}
-          isOpen={showAwardBonusModal}
-          onClose={() => {
-            setShowAwardBonusModal(false);
-            setSelectedStudentForBonus(null);
-          }}
-          onSuccess={() => {
-            // Refreshes store triggers automatically via subscription
-          }}
-        />
-      )}
 
       {/* Delete Class Confirm Modal */}
       <ConfirmModal
@@ -1225,18 +1409,32 @@ HS933\tNguyễn Phương Uyên\tphuonguyen.ng@gmail.com\t0981112233`
                 students={students}
                 initialDate={attendanceTargetDate}
                 initialSessionName={attendanceTargetSession}
-                onBonusClick={(st) => {
-                  setSelectedStudentForBonus(st);
-                  setShowAwardBonusModal(true);
-                }}
                 onGoToSchedule={() => {
                   setShowAttendanceModal(false);
                   setActiveTab('schedule');
+                }}
+                onClose={() => {
+                  setShowAttendanceModal(false);
+                }}
+                onEndSession={(_dateStr, _sessionName) => {
+                  setShowAttendanceModal(false);
                 }}
               />
             </div>
           </div>
         </div>
+      )}
+
+      {/* Student QR Approval Modal */}
+      {showApprovalModal && (
+        <StudentApprovalModal
+          isOpen={showApprovalModal}
+          classRoom={cls}
+          onClose={() => setShowApprovalModal(false)}
+          onApproved={(_approvedList) => {
+            setStudents(store.getStudentsByClassId(cls.id));
+          }}
+        />
       )}
     </div>
   );

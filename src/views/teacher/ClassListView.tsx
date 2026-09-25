@@ -9,7 +9,6 @@ import {
   BookOpen,
   Edit,
   Trash2,
-  Archive,
   CheckCircle,
   ExternalLink,
   GraduationCap,
@@ -28,8 +27,10 @@ import { ClassRoom, Student, Exam, Submission } from '../../types';
 import { QRModal } from '../../components/common/QRModal';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { ClassFormModal } from '../../components/classes/ClassFormModal';
+import { StudentApprovalModal } from './components/StudentApprovalModal';
 import { useToast } from '../../context/ToastContext';
 import { useTheme } from '../../context/ThemeContext';
+import { ShieldCheck } from 'lucide-react';
 
 export const ClassListView: React.FC = () => {
   const navigate = useNavigate();
@@ -44,7 +45,6 @@ export const ClassListView: React.FC = () => {
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGrade, setSelectedGrade] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<'all' | 'active' | 'archived'>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
   // Modals state
@@ -56,6 +56,12 @@ export const ClassListView: React.FC = () => {
   // Create / Edit Class Modal
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingClass, setEditingClass] = useState<ClassRoom | null>(null);
+
+  // Student Approval Modal
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [selectedApprovalClass, setSelectedApprovalClass] = useState<ClassRoom | undefined>(undefined);
+
+  const totalPending = useMemo(() => store.getPendingStudents().length, [students]);
 
   useEffect(() => {
     const handleStoreChange = () => {
@@ -71,15 +77,6 @@ export const ClassListView: React.FC = () => {
   const openCreateModal = (cls?: ClassRoom) => {
     setEditingClass(cls || null);
     setShowCreateModal(true);
-  };
-
-  const handleToggleArchive = (cls: ClassRoom) => {
-    const nextStatus = cls.status === 'active' ? 'archived' : 'active';
-    store.updateClass(cls.id, { status: nextStatus });
-    success(
-      nextStatus === 'active' ? 'Khôi phục lớp học' : 'Lưu trữ lớp học',
-      `Lớp ${cls.name} hiện ở trạng thái ${nextStatus === 'active' ? 'Đang học' : 'Lưu trữ'}.`
-    );
   };
 
   const handleDeleteConfirm = () => {
@@ -121,7 +118,7 @@ export const ClassListView: React.FC = () => {
   };
 
   const handleExportClassesCSV = () => {
-    const header = ['Mã lớp', 'Tên lớp học', 'Môn học', 'Khối', 'Năm học', 'Số học sinh', 'Điểm TB', 'Trạng thái'];
+    const header = ['Mã lớp', 'Tên lớp học', 'Môn học', 'Khối', 'Năm học', 'Số học sinh', 'Điểm TB'];
     const rows = filteredClasses.map((cls) => {
       const classStudents = students.filter((s) => s.classId === cls.id);
       const classSubs = submissions.filter((s) => s.studentClassId === cls.id);
@@ -135,8 +132,7 @@ export const ClassListView: React.FC = () => {
         cls.grade,
         cls.academicYear,
         classStudents.length,
-        avg,
-        cls.status === 'active' ? 'Đang học' : 'Lưu trữ'
+        avg
       ];
     });
 
@@ -160,10 +156,9 @@ export const ClassListView: React.FC = () => {
         c.joinCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
         c.subject.toLowerCase().includes(searchTerm.toLowerCase());
       const matchGrade = selectedGrade === 'all' || c.grade === selectedGrade;
-      const matchStatus = selectedStatus === 'all' || c.status === selectedStatus;
-      return matchSearch && matchGrade && matchStatus;
+      return matchSearch && matchGrade;
     });
-  }, [classes, searchTerm, selectedGrade, selectedStatus]);
+  }, [classes, searchTerm, selectedGrade]);
 
   const gradesList = ['Khối 6', 'Khối 7', 'Khối 8', 'Khối 9', 'Khối 10', 'Khối 11', 'Khối 12'];
 
@@ -210,7 +205,23 @@ export const ClassListView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            id="btn-approval-students-list"
+            onClick={() => {
+              setSelectedApprovalClass(undefined);
+              setShowApprovalModal(true);
+            }}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 font-bold text-xs rounded-xl border transition-all cursor-pointer ${
+              totalPending > 0
+                ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-sm animate-pulse'
+                : 'bg-white hover:bg-amber-50 text-amber-900 border-amber-200'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Duyệt học sinh{totalPending > 0 ? ` (${totalPending})` : ''}</span>
+          </button>
+
           <button
             id="btn-export-classes"
             onClick={handleExportClassesCSV}
@@ -253,17 +264,6 @@ export const ClassListView: React.FC = () => {
 
         {/* Filters & View Switcher */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Status filter */}
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value as any)}
-            className="bg-white border border-slate-200 text-xs font-semibold text-slate-700 px-3.5 py-2 rounded-xl focus:outline-hidden focus:border-blue-500 cursor-pointer shadow-2xs"
-          >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="active">Đang học</option>
-            <option value="archived">Lưu trữ</option>
-          </select>
-
           {/* View Mode Toggle */}
           <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden p-0.5 bg-slate-100">
             <button
@@ -292,7 +292,7 @@ export const ClassListView: React.FC = () => {
           </div>
           <h3 className="text-base font-bold text-slate-800">Không tìm thấy lớp học nào</h3>
           <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-            {searchTerm || selectedGrade !== 'all' || selectedStatus !== 'all'
+            {searchTerm || selectedGrade !== 'all'
               ? 'Không có lớp học nào khớp với bộ lọc hiện tại. Vui lòng thử tìm kiếm khác.'
               : 'Bạn chưa tạo lớp học nào. Hãy bắt đầu bằng cách tạo lớp đầu tiên!'}
           </p>
@@ -309,6 +309,8 @@ export const ClassListView: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredClasses.map((cls) => {
             const badge = getClassBadgeStyle(cls.grade, cls.name);
+            const classStudents = students.filter((s) => s.classId === cls.id);
+            const pendingCount = classStudents.filter((s) => s.status === 'pending').length;
 
             return (
               <div
@@ -316,31 +318,19 @@ export const ClassListView: React.FC = () => {
                 className="bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-slate-300 transition-all flex flex-col justify-between overflow-hidden group hover:-translate-y-0.5 duration-200"
               >
                 <div className="p-5 pb-4">
-                  {/* Header Row: Avatar, Info & Status */}
+                  {/* Header Row: Avatar & Info */}
                   <div className="flex items-start justify-between gap-2 mb-2.5">
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
                       {/* Avatar */}
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-sm border shadow-2xs shrink-0 ${badge.bg} ${badge.text} ${badge.border}`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-sm border shadow-2xs shrink-0 mt-0.5 ${badge.bg} ${badge.text} ${badge.border}`}>
                         {cls.name.slice(0, 2).toUpperCase()}
                       </div>
-                      <div className="min-w-0">
-                        <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug group-hover:text-blue-600 transition-colors truncate">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug group-hover:text-blue-600 transition-colors line-clamp-2">
                           <Link to={`/teacher/classes/${cls.id}`} title={cls.name}>{cls.name}</Link>
                         </h3>
                       </div>
                     </div>
-
-                    {/* Status badge */}
-                    <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider shrink-0 inline-flex items-center gap-1.5 ${
-                      cls.status === 'active'
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                        : 'bg-slate-100 text-slate-500 border border-slate-200'
-                    }`}>
-                      {cls.status === 'active' && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      )}
-                      <span>{cls.status === 'active' ? 'Đang học' : 'Lưu trữ'}</span>
-                    </span>
                   </div>
 
                   {/* Description */}
@@ -348,46 +338,10 @@ export const ClassListView: React.FC = () => {
                     {cls.description || 'Chưa có mô tả'}
                   </p>
 
-                  {/* Join code & QR trigger */}
-                  <div className="mt-3 flex items-center justify-between px-3 py-2 bg-slate-50/80 rounded-xl border border-slate-200/80 text-xs">
-                    <div className="flex items-center gap-1.5 text-slate-700">
-                      <span className="text-[11px] font-medium text-slate-400">Mã lớp:</span>
-                      <span className="font-mono font-bold text-xs text-slate-800 bg-white px-2 py-0.5 rounded-md border border-slate-200 shadow-2xs select-all">
-                        {cls.joinCode}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(cls.joinCode);
-                          setCopiedClassId(cls.id);
-                          setTimeout(() => setCopiedClassId(null), 1800);
-                          success('Đã sao chép mã lớp', `Mã: ${cls.joinCode}`);
-                        }}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50/80 rounded-lg transition-colors cursor-pointer"
-                        title="Sao chép mã"
-                      >
-                        {copiedClassId === cls.id ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            <span className="text-emerald-600">Đã chép</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>Chép</span>
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setQrClass(cls)}
-                        className="inline-flex items-center gap-0.5 px-2 py-1 text-[11px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                        title="Xem mã QR"
-                      >
-                        <QrCode className="w-3.5 h-3.5" />
-                        <span>QR</span>
-                      </button>
-                    </div>
+                  {/* Sĩ số học sinh */}
+                  <div className="flex items-center gap-1.5 text-slate-600 font-medium text-xs mt-2.5">
+                    <Users className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                    <span>Sĩ số: <strong className="font-bold text-slate-900">{classStudents.length}</strong> học sinh</span>
                   </div>
                 </div>
 
@@ -395,18 +349,18 @@ export const ClassListView: React.FC = () => {
                 <div className="px-4 py-2.5 bg-slate-50/70 border-t border-slate-100 flex items-center gap-2">
                   <div className="flex items-center gap-1">
                     <button
+                      onClick={() => setQrClass(cls)}
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl border border-transparent hover:border-slate-200/80 hover:shadow-2xs transition-all cursor-pointer"
+                      title="Xem mã QR & Mã vào lớp"
+                    >
+                      <QrCode className="w-3.5 h-3.5" />
+                    </button>
+                    <button
                       onClick={() => openCreateModal(cls)}
                       className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl border border-transparent hover:border-slate-200/80 hover:shadow-2xs transition-all cursor-pointer"
                       title="Chỉnh sửa thông tin"
                     >
                       <Edit className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleToggleArchive(cls)}
-                      className="p-2 text-slate-400 hover:text-slate-700 hover:bg-white rounded-xl border border-transparent hover:border-slate-200/80 hover:shadow-2xs transition-all cursor-pointer"
-                      title={cls.status === 'active' ? 'Lưu trữ lớp' : 'Khôi phục lớp'}
-                    >
-                      <Archive className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => setDeleteClassId(cls.id)}
@@ -438,13 +392,16 @@ export const ClassListView: React.FC = () => {
                 <tr>
                   <th className="py-3.5 px-4 whitespace-nowrap">Tên lớp học</th>
                   <th className="py-3.5 px-3">Mô tả</th>
+                  <th className="py-3.5 px-3 text-center whitespace-nowrap">Sĩ số</th>
                   <th className="py-3.5 px-3 whitespace-nowrap">Mã tham gia</th>
-                  <th className="py-3.5 px-3 whitespace-nowrap text-center">Trạng thái</th>
                   <th className="py-3.5 px-6 text-center whitespace-nowrap">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="text-sm divide-y divide-slate-100">
                 {filteredClasses.map((cls) => {
+                  const classStudents = students.filter((s) => s.classId === cls.id);
+                  const pendingCount = classStudents.filter((s) => s.status === 'pending').length;
+
                   return (
                     <tr key={cls.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3.5 px-4 whitespace-nowrap">
@@ -457,6 +414,12 @@ export const ClassListView: React.FC = () => {
                       </td>
                       <td className="py-3.5 px-3 text-xs text-slate-500 font-normal max-w-[200px] truncate" title={cls.description}>
                         {cls.description || 'Chưa có mô tả'}
+                      </td>
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-800 bg-slate-100/80 px-2.5 py-1 rounded-lg">
+                          <Users className="w-3 h-3 text-blue-600" />
+                          <span>{classStudents.length} HS</span>
+                        </span>
                       </td>
                       <td className="py-3.5 px-3 whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5 font-mono text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg">
@@ -473,15 +436,6 @@ export const ClassListView: React.FC = () => {
                           </button>
                         </div>
                       </td>
-                      <td className="py-3.5 px-3 whitespace-nowrap text-center">
-                        <span className={`inline-flex items-center px-2.5 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider whitespace-nowrap ${
-                          cls.status === 'active'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-500 border border-slate-200'
-                        }`}>
-                          {cls.status === 'active' ? 'Đang học' : 'Lưu trữ'}
-                        </span>
-                      </td>
                       <td className="py-3.5 px-6 text-center whitespace-nowrap">
                         <div className="inline-flex items-center justify-center gap-1.5">
                           <button
@@ -497,13 +451,6 @@ export const ClassListView: React.FC = () => {
                             title="Chỉnh sửa thông tin"
                           >
                             <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleToggleArchive(cls)}
-                            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
-                            title={cls.status === 'active' ? 'Lưu trữ lớp' : 'Khôi phục lớp'}
-                          >
-                            <Archive className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setDeleteClassId(cls.id)}
@@ -632,6 +579,18 @@ export const ClassListView: React.FC = () => {
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteClassId(null)}
       />
+
+      {/* Student QR Approval Modal */}
+      {showApprovalModal && (
+        <StudentApprovalModal
+          isOpen={showApprovalModal}
+          classRoom={selectedApprovalClass}
+          onClose={() => setShowApprovalModal(false)}
+          onApproved={(_approved) => {
+            setStudents(store.getStudents());
+          }}
+        />
+      )}
     </div>
   );
 };
