@@ -732,7 +732,7 @@ export const ExamListView: React.FC = () => {
               setCreateModalInitialTab('ai');
               setShowAzotaCreateModal(true);
             } else if (method === 'from_scratch') {
-              setCreateModalInitialTab('bank');
+              setCreateModalInitialTab('compose');
               setShowAzotaCreateModal(true);
             } else if (method === 'quick') {
               setCreateModalInitialTab('quick_sheet');

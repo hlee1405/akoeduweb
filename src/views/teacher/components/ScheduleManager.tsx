@@ -577,11 +577,11 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
   }, [storageKey]);
 
   const handleOpenAttendanceForSession = (session: ClassTeachingSession) => {
-    const sessionLabel = `${formatSessionDateVN(session.date)}${
-      session.startTime ? ` (${session.startTime} - ${session.endTime})` : ''
-    }`;
+    const timeLabel = session.startTime && session.endTime
+      ? `${session.startTime} - ${session.endTime}`
+      : (session.shift ? `Ca ${session.shift}` : (session.title || ''));
     if (onTakeAttendance) {
-      onTakeAttendance(session.date, sessionLabel);
+      onTakeAttendance(session.date, timeLabel);
     }
   };
 
@@ -1493,7 +1493,6 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
                             disabled={statusInfo.type === 'cancelled'}
                             onClick={() => {
                               onAssignExam?.(session);
-                              info(`Mở giao bài tập/đề thi cho buổi ${formatSessionDateVN(session.date)}`);
                             }}
                             className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                               statusInfo.type === 'cancelled'

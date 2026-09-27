@@ -504,8 +504,7 @@ export const ClassDetailView: React.FC = () => {
             setShowAttendanceModal(true);
           }}
           onAssignExam={(_session) => {
-            setHomeworkInitialMode('upload');
-            setShowCreateHomeworkModal(true);
+            setShowClassAssignExamModal(true);
           }}
         />
       )}
@@ -1420,7 +1419,7 @@ export const ClassDetailView: React.FC = () => {
               setExamInitialTab('ai');
               setShowAzotaCreateExamModal(true);
             } else if (method === 'from_scratch') {
-              setExamInitialTab('bank');
+              setExamInitialTab('compose');
               setShowAzotaCreateExamModal(true);
             } else if (method === 'quick') {
               setExamInitialTab('quick_sheet');

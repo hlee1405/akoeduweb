@@ -971,17 +971,17 @@ export const AzotaCreateExamModal: React.FC<AzotaCreateExamModalProps> = ({
           {/* Tab 1: Tạo từ đầu */}
           <button
             type="button"
-            onClick={() => setActiveTab('bank')}
+            onClick={() => setActiveTab('compose')}
             className={`py-2 px-2.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer ${
-              activeTab === 'bank'
+              activeTab === 'compose'
                 ? 'bg-indigo-50 border-indigo-400 text-indigo-800 shadow-2xs'
                 : 'border-slate-200 text-slate-600 hover:bg-slate-50'
             }`}
           >
-            <BookOpen className={`w-4 h-4 shrink-0 ${activeTab === 'bank' ? 'text-indigo-600' : 'text-slate-400'}`} />
+            <BookOpen className={`w-4 h-4 shrink-0 ${activeTab === 'compose' ? 'text-indigo-600' : 'text-slate-400'}`} />
             <div className="text-left min-w-0">
               <span className="block leading-tight truncate">1. Tạo từ đầu</span>
-              <span className="text-[10px] font-normal text-slate-400 hidden sm:block truncate">Từ ngân hàng</span>
+              <span className="text-[10px] font-normal text-slate-400 hidden sm:block truncate">Tự nhập tay</span>
             </div>
           </button>
 

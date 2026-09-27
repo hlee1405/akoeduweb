@@ -98,6 +98,10 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
   // Auto-fill session name from schedule if date changes and no existing record
   useEffect(() => {
+    if (initialSessionName) {
+      setSessionName(initialSessionName);
+      return;
+    }
     const existing = store.getAttendanceRecords(cls.id, selectedDate);
     if (existing.length > 0 && existing[0].sessionName) {
       setSessionName(existing[0].sessionName);
@@ -106,12 +110,10 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
       // Check if there is a schedule for this day
       if (scheduledSessionsForDate.length > 0) {
         const defaultItem = scheduledSessionsForDate[0];
-        const label =
-          defaultItem.label ||
-          `${DAYS_OF_WEEK_NAMES[defaultItem.dayOfWeek]}: ${defaultItem.startTime} - ${defaultItem.endTime}${
-            defaultItem.room ? ` (${defaultItem.room})` : ''
-          }`;
-        setSessionName(label);
+        const timeLabel = defaultItem.startTime && defaultItem.endTime
+          ? `${defaultItem.startTime} - ${defaultItem.endTime}`
+          : defaultItem.label || 'Ca học định kỳ';
+        setSessionName(timeLabel);
         setSelectedScheduleItemId(defaultItem.id);
         setCustomSession(false);
       } else if (!sessionName || sessionName.startsWith('Tiết')) {
@@ -119,7 +121,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
         setSelectedScheduleItemId(undefined);
       }
     }
-  }, [selectedDate, cls.id, scheduledSessionsForDate]);
+  }, [selectedDate, cls.id, scheduledSessionsForDate, initialSessionName]);
 
   // Load existing records for this class & date
   useEffect(() => {
@@ -371,21 +373,13 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             </div>
 
             <div className="text-[11px] mt-0.5 text-slate-600 flex items-center gap-3 flex-wrap">
-              {scheduledSessionsForDate.length > 0 ? (
-                <>
-                  <span>
-                    Ca học theo TKB:{' '}
-                    <strong className="text-slate-800">
-                      {activeMatchedSession?.label || scheduledSessionsForDate[0].label || `${scheduledSessionsForDate[0].startTime} - ${scheduledSessionsForDate[0].endTime}`}
-                    </strong>
-                  </span>
-                  {scheduledSessionsForDate[0].room && (
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-slate-400" />
-                      <span>{scheduledSessionsForDate[0].room}</span>
-                    </span>
-                  )}
-                </>
+              {sessionName || scheduledSessionsForDate.length > 0 ? (
+                <span>
+                  Ca học theo TKB:{' '}
+                  <strong className="text-slate-800">
+                    {sessionName || (scheduledSessionsForDate[0]?.startTime && scheduledSessionsForDate[0]?.endTime ? `${scheduledSessionsForDate[0].startTime} - ${scheduledSessionsForDate[0].endTime}` : scheduledSessionsForDate[0]?.label || 'Ca học định kỳ')}
+                  </strong>
+                </span>
               ) : (
                 <span>
                   Ngày này lớp không có ca học định kỳ trong tuần. Điểm danh sẽ được ghi nhận là buổi học tăng cường hoặc học bù.
@@ -394,31 +388,6 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Quick actions for timetable */}
-        {scheduledSessionsForDate.length > 1 && (
-          <div className="flex items-center gap-1 shrink-0">
-            <span className="text-[11px] font-medium text-slate-500">Chọn ca:</span>
-            {scheduledSessionsForDate.map((s, idx) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => {
-                  setSelectedScheduleItemId(s.id);
-                  setSessionName(s.label || `${DAYS_OF_WEEK_NAMES[s.dayOfWeek]}: ${s.startTime} - ${s.endTime}`);
-                  setIsSaved(false);
-                }}
-                className={`px-2 py-1 rounded-lg text-[11px] font-bold transition-colors cursor-pointer ${
-                  selectedScheduleItemId === s.id
-                    ? 'bg-emerald-700 text-white shadow-2xs'
-                    : 'bg-white text-slate-700 border border-emerald-200 hover:bg-emerald-50'
-                }`}
-              >
-                Ca {idx + 1} ({s.startTime})
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* 3. ACTION BUTTONS (Tất cả có mặt, Xuất CSV, Lưu điểm danh, Kết thúc buổi học) */}

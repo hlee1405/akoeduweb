@@ -50,6 +50,8 @@ export const DashboardView: React.FC = () => {
   }, []);
 
   const activeClassesCount = classes.filter((c) => c.status === 'active').length;
+  const pendingStudents = store.getPendingStudents();
+  const pendingCount = pendingStudents.length;
   // Đề / bài tập đang trong thời gian giao (được phát hành và còn hạn nhận bài)
   const activeAssignedExams = exams.filter((e) => {
     if (e.status !== 'published') return false;
@@ -137,10 +139,10 @@ export const DashboardView: React.FC = () => {
         </div>
 
         <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-wider h-8 flex items-center">Tổng học sinh</p>
+          <p className="text-slate-500 text-xs font-bold uppercase tracking-wider h-8 flex items-center">Yêu cầu tham gia</p>
           <div className="flex items-end justify-between mt-2">
-            <span className="text-3xl font-extrabold text-slate-900">{students.length}</span>
-            <span className="text-emerald-700 text-xs font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">+12 mới</span>
+            <span className="text-3xl font-extrabold text-slate-900">{String(pendingCount).padStart(2, '0')}</span>
+            <span className="text-amber-700 text-xs font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">Chờ duyệt</span>
           </div>
         </div>
 

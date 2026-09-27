@@ -48,11 +48,11 @@ export const CreateExamChoiceModal: React.FC<CreateExamChoiceModalProps> = ({
       id: 'from_scratch',
       number: 1,
       title: 'Tạo từ đầu',
-      description: 'Chọn câu hỏi từ ngân hàng câu hỏi để tạo đề',
+      description: 'Tự nhập tay câu hỏi, các phương án A/B/C/D và đáp án',
       icon: BookOpen,
       iconBg: 'bg-indigo-50 border-indigo-100 text-indigo-600',
       iconColor: 'text-indigo-600',
-      badge: 'Ngân hàng',
+      badge: 'Tự nhập tay',
       badgeBg: 'bg-indigo-50',
       badgeColor: 'text-indigo-700'
     },
