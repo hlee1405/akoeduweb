@@ -741,23 +741,13 @@ export const ClassDetailView: React.FC = () => {
                         <Send className="w-3.5 h-3.5 text-[#B68176]" />
                         <span>Cài đặt & Giao lại</span>
                       </button>
-                      <div className="flex items-center gap-3">
-                        <Link
-                          to={`/exam/${exam.id}`}
-                          target="_blank"
-                          className="text-[#9A8A85] hover:text-[#5C453C] inline-flex items-center gap-1 font-semibold transition-colors"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5 text-[#B68176]" />
-                          <span>Xem đề</span>
-                        </Link>
-                        <Link
-                          to={`/teacher/reports?examId=${exam.id}`}
-                          className="text-[#B68176] hover:text-[#A37066] font-bold inline-flex items-center gap-1 transition-colors"
-                        >
-                          <TrendingUp className="w-3.5 h-3.5" />
-                          <span>Báo cáo</span>
-                        </Link>
-                      </div>
+                      <Link
+                        to={`/teacher/reports?examId=${exam.id}`}
+                        className="text-[#B68176] hover:text-[#A37066] font-bold inline-flex items-center gap-1 transition-colors"
+                      >
+                        <TrendingUp className="w-3.5 h-3.5" />
+                        <span>Xem chi tiết</span>
+                      </Link>
                     </div>
                   </div>
                 );
