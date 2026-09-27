@@ -83,7 +83,7 @@ export const StudentApprovalModal: React.FC<StudentApprovalModalProps> = ({
 
   // Filtered pending students
   const filteredList = useMemo(() => {
-    return pendingStudents.filter((s) => {
+    const list = pendingStudents.filter((s) => {
       const matchClass = selectedClassId === 'all' || s.classId === selectedClassId;
       const matchSearch =
         !searchTerm.trim() ||
@@ -93,6 +93,9 @@ export const StudentApprovalModal: React.FC<StudentApprovalModalProps> = ({
         (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase()));
       return matchClass && matchSearch;
     });
+    const map = new Map<string, Student>();
+    list.forEach((s) => map.set(s.id, s));
+    return Array.from(map.values());
   }, [pendingStudents, selectedClassId, searchTerm]);
 
   if (!isOpen) return null;

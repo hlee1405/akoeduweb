@@ -18,37 +18,14 @@ export const UpcomingScheduleWidget: React.FC = () => {
     return unsub;
   }, []);
 
-  // Sort sessions chronologically
-  const sortedSessions = [...sessions].sort((a, b) => {
-    const timeA = `${a.date}T${a.startTime || '00:00'}`;
-    const timeB = `${b.date}T${b.startTime || '00:00'}`;
-    return timeA.localeCompare(timeB);
-  });
-
   // Simulated anchor date (September 2026 or real today)
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
   const anchorDate = todayStr >= '2026-09-01' ? todayStr : '2026-09-17';
 
-  // Filter for upcoming sessions from anchor date
-  const upcomingSessions = sortedSessions.filter((s) => s.date >= anchorDate);
-  const displaySessions = (upcomingSessions.length >= 3 ? upcomingSessions : sortedSessions).slice(0, 3);
-
-  const formatSessionDate = (dateStr: string) => {
-    const parts = dateStr.split('-');
-    if (parts.length !== 3) return { shortDay: 'T2', dayNum: '01', monthNum: '09', isToday: false };
-    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-    const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-    const shortDay = dayNames[d.getDay()] || 'T2';
-    const dayNum = String(d.getDate()).padStart(2, '0');
-    const monthNum = String(d.getMonth() + 1).padStart(2, '0');
-    const isToday = dateStr === anchorDate;
-    return { shortDay, dayNum, monthNum, isToday };
-  };
-
   // Check if session is currently ongoing
   const isSessionOngoing = (session: CalendarSession) => {
-    if ((session as any).status === 'ongoing') return true;
+    if (session.status === 'ongoing' || (session as any).status === 'ongoing') return true;
 
     const nowTime = new Date();
     const curYear = nowTime.getFullYear();
@@ -73,13 +50,40 @@ export const UpcomingScheduleWidget: React.FC = () => {
     return false;
   };
 
+  // Sort sessions chronologically with ongoing session pinned to top
+  const sortedSessions = [...sessions].sort((a, b) => {
+    const isOngoingA = isSessionOngoing(a);
+    const isOngoingB = isSessionOngoing(b);
+    if (isOngoingA && !isOngoingB) return -1;
+    if (!isOngoingA && isOngoingB) return 1;
+    const timeA = `${a.date}T${a.startTime || '00:00'}`;
+    const timeB = `${b.date}T${b.startTime || '00:00'}`;
+    return timeA.localeCompare(timeB);
+  });
+
+  // Filter for upcoming sessions from anchor date (or ongoing)
+  const upcomingSessions = sortedSessions.filter((s) => isSessionOngoing(s) || s.date >= anchorDate);
+  const displaySessions = (upcomingSessions.length >= 4 ? upcomingSessions : sortedSessions).slice(0, 4);
+
+  const formatSessionDate = (dateStr: string) => {
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return { shortDay: 'T2', dayNum: '01', monthNum: '09', isToday: false };
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    const shortDay = dayNames[d.getDay()] || 'T2';
+    const dayNum = String(d.getDate()).padStart(2, '0');
+    const monthNum = String(d.getMonth() + 1).padStart(2, '0');
+    const isToday = dateStr === anchorDate || dateStr === todayStr;
+    return { shortDay, dayNum, monthNum, isToday };
+  };
+
   return (
     <div
       id="upcoming-schedule-widget"
-      className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden transition-all flex flex-col"
+      className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden transition-all flex flex-col h-full"
     >
       {/* Header */}
-      <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+      <div className="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2.5">
           <div
             className="w-8 h-8 rounded-xl flex items-center justify-center border transition-colors"
@@ -105,10 +109,10 @@ export const UpcomingScheduleWidget: React.FC = () => {
         </Link>
       </div>
 
-      {/* Body: List of 3 nearest schedules with clean white cards */}
-      <div className="p-4 space-y-2.5">
+      {/* Body: List of 4 nearest schedules */}
+      <div className="p-4 flex-1 flex flex-col justify-between gap-2.5">
         {displaySessions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center text-slate-400">
+          <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400 flex-1">
             <CalendarIcon className="w-8 h-8 text-slate-300 mb-2" />
             <p className="text-xs font-semibold">Chưa có lịch dạy nào sắp tới</p>
             <Link
@@ -128,16 +132,12 @@ export const UpcomingScheduleWidget: React.FC = () => {
               <div
                 key={session.id || index}
                 onClick={() => navigate(`/teacher/calendar?date=${session.date}`)}
-                className={`p-3 rounded-xl border bg-white hover:bg-slate-50/80 hover:shadow-xs transition-all flex items-center gap-3 group cursor-pointer ${
-                  isOngoing
-                    ? 'border-emerald-300 ring-1 ring-emerald-400/20 shadow-2xs'
-                    : 'border-slate-200/80 hover:border-blue-300/80'
-                }`}
+                className="p-2.5 sm:p-3 rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50/80 hover:border-blue-300/80 hover:shadow-xs transition-all flex items-center gap-3 group cursor-pointer"
               >
                 {/* Date Badge */}
-                <div className="shrink-0 w-11 h-13 rounded-lg bg-white border border-slate-200 flex flex-col items-center justify-center text-center shadow-2xs group-hover:border-blue-300/80 transition-colors relative">
+                <div className="shrink-0 w-11 h-12 rounded-lg bg-slate-50 border border-slate-200/90 flex flex-col items-center justify-center text-center shadow-2xs group-hover:border-blue-300 transition-colors">
                   <span
-                    className="text-[10px] font-bold uppercase tracking-wide leading-tight"
+                    className="text-[10px] font-bold uppercase tracking-wide leading-none"
                     style={{ color: themeConfig.colors.primary }}
                   >
                     {shortDay}
@@ -145,7 +145,7 @@ export const UpcomingScheduleWidget: React.FC = () => {
                   <span className="text-sm font-extrabold text-slate-800 leading-none my-0.5">
                     {dayNum}
                   </span>
-                  <span className="text-[9px] text-slate-400 font-medium leading-tight">
+                  <span className="text-[9px] text-slate-400 font-medium leading-none">
                     Th{monthNum}
                   </span>
                 </div>

@@ -244,6 +244,109 @@ Trả về định dạng JSON:
     }
   });
 
+  // POST /api/ai/chat-generate-exam: Chatbot AI Exam Generator & Question Refiner
+  app.post('/api/ai/chat-generate-exam', async (req, res) => {
+    try {
+      const {
+        messages = [],
+        prompt: userPrompt,
+        subject = 'Toán học',
+        grade = 'Khối 9',
+        count = 5,
+        difficulty = 'mixed',
+        existingQuestions = []
+      } = req.body;
+
+      const ai = getGeminiClient();
+      const latestMessage = userPrompt || (messages.length > 0 ? messages[messages.length - 1].content : '');
+
+      if (!ai) {
+        return res.json({
+          success: true,
+          isDemoFallback: true,
+          data: generateFallbackChatExam(latestMessage, subject, grade, count, difficulty, existingQuestions)
+        });
+      }
+
+      const systemInstruction = `Bạn là trợ lý AI Giáo Dục (EdTech Assistant) hàng đầu chuyên tạo, thẩm định và tinh chỉnh đề thi trắc nghiệm khách quan 4 lựa chọn (A, B, C, D) theo chuẩn chương trình Giáo dục Phổ thông Việt Nam (BGD&ĐT).
+Khi người dùng (giáo viên) yêu cầu tạo đề hoặc chỉnh sửa câu hỏi qua chat:
+1. Phân tích ngữ cảnh, chủ đề, khối lớp, độ khó và số lượng câu hỏi.
+2. Trả lời bằng tiếng Việt sư phạm, lịch sự, chu đáo ("Dạ thầy/cô, tôi đã tạo...").
+3. Xuất danh sách câu hỏi trắc nghiệm chất lượng cao, đúng chuẩn 4 phương án A, B, C, D kèm đáp án đúng và lời giải chi tiết.
+
+Yêu cầu định dạng JSON xuất ra:
+{
+  "replyText": "Lời phản hồi tự nhiên trong chatbot gửi tới giáo viên...",
+  "suggestedTitle": "Tên đề thi phù hợp (ví dụ: Đề trắc nghiệm Toán 9 - Căn bậc hai)",
+  "subject": "${subject}",
+  "grade": "${grade}",
+  "questions": [
+    {
+      "id": "q-ai-1",
+      "content": "Nội dung câu hỏi...",
+      "options": [
+        { "id": "A", "content": "Đáp án A" },
+        { "id": "B", "content": "Đáp án B" },
+        { "id": "C", "content": "Đáp án C" },
+        { "id": "D", "content": "Đáp án D" }
+      ],
+      "correctAnswer": "A",
+      "explanation": "Lời giải chi tiết từng bước...",
+      "topic": "Chuyên đề bài học",
+      "difficulty": "medium",
+      "cognitiveLevel": "understand"
+    }
+  ]
+}`;
+
+      const conversationContext = messages
+        .map((m: any) => `${m.role === 'user' ? 'Giáo viên' : 'AI'}: ${m.content}`)
+        .join('\n');
+
+      const fullPrompt = `Ngữ cảnh hội thoại trước đó:\n${conversationContext}\n\nYêu cầu hiện tại của giáo viên: "${latestMessage}"\nMôn học: ${subject}, Khối lớp: ${grade}, Số lượng mong muốn: ${count}, Độ khó: ${difficulty}.\nDanh sách câu hỏi hiện tại nếu cần tinh chỉnh: ${JSON.stringify(existingQuestions.slice(0, 5))}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.7-flash',
+        contents: [
+          { role: 'user', parts: [{ text: `${systemInstruction}\n\n${fullPrompt}` }] }
+        ],
+        config: {
+          responseMimeType: 'application/json'
+        }
+      });
+
+      const parsedText = response.text;
+      if (!parsedText) {
+        throw new Error('Gemini returned empty response');
+      }
+
+      const data = JSON.parse(parsedText);
+      return res.json({
+        success: true,
+        isDemoFallback: false,
+        data
+      });
+    } catch (err: any) {
+      console.warn('Gemini chat generate exam failed, falling back:', err?.message);
+      const {
+        prompt: userPrompt,
+        messages = [],
+        subject = 'Toán học',
+        grade = 'Khối 9',
+        count = 5,
+        difficulty = 'mixed',
+        existingQuestions = []
+      } = req.body;
+      const latestMessage = userPrompt || (messages.length > 0 ? messages[messages.length - 1].content : '');
+
+      return res.json({
+        success: true,
+        isDemoFallback: true,
+        data: generateFallbackChatExam(latestMessage, subject, grade, count, difficulty, existingQuestions)
+      });
+    }
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
@@ -392,6 +495,211 @@ function generateFallbackEssayGrading(questionContent: string, studentAnswer: st
       keyPointsMissed: ['Thiếu điều kiện chặt chẽ cho ẩn', 'Trình bày còn vắn tắt']
     };
   }
+}
+
+function generateFallbackChatExam(
+  userPrompt: string,
+  subject: string,
+  grade: string,
+  count: number,
+  difficulty: string,
+  existingQuestions: any[] = []
+) {
+  const promptLower = (userPrompt || '').toLowerCase();
+  const effectiveCount = Math.max(1, Math.min(count || 5, 20));
+
+  let detectedTopic = 'Chương trình chuẩn BGD';
+  let title = `Đề trắc nghiệm ${subject} ${grade}`;
+
+  // Topic detection
+  if (promptLower.includes('căn') || promptLower.includes('can bac hai')) {
+    detectedTopic = 'Căn bậc hai & Căn thức bậc ba';
+    title = `Đề trắc nghiệm Toán 9 - Chuyên đề Căn bậc hai (${effectiveCount} câu)`;
+  } else if (promptLower.includes('hàm số') || promptLower.includes('ham so') || promptLower.includes('ax + b')) {
+    detectedTopic = 'Hàm số bậc nhất y = ax + b';
+    title = `Đề kiểm tra Hàm số bậc nhất ${grade} (${effectiveCount} câu)`;
+  } else if (promptLower.includes('hệ phương trình') || promptLower.includes('he phuong trinh')) {
+    detectedTopic = 'Hệ hai phương trình bậc nhất hai ẩn';
+    title = `Đề trắc nghiệm Hệ phương trình ${grade} (${effectiveCount} câu)`;
+  } else if (promptLower.includes('tam giác') || promptLower.includes('lượng giác') || promptLower.includes('hệ thức lượng')) {
+    detectedTopic = 'Hệ thức lượng trong tam giác vuông';
+    title = `Đề trắc nghiệm Hình học ${grade} (${effectiveCount} câu)`;
+  } else if (promptLower.includes('vật lý') || promptLower.includes('ohm') || promptLower.includes('ôm') || promptLower.includes('điện')) {
+    detectedTopic = 'Định luật Ôm & Công suất dòng điện';
+    title = `Đề trắc nghiệm Vật lý ${grade} (${effectiveCount} câu)`;
+  } else if (promptLower.includes('hóa') || promptLower.includes('axit') || promptLower.includes('bazơ') || promptLower.includes('muối')) {
+    detectedTopic = 'Tính chất hóa học của Axit & Bazơ';
+    title = `Đề trắc nghiệm Hóa học ${grade} (${effectiveCount} câu)`;
+  } else if (promptLower.includes('anh') || promptLower.includes('english') || promptLower.includes('thì') || promptLower.includes('tense')) {
+    detectedTopic = 'English Grammar & Vocabulary';
+    title = `Tiếng Anh ${grade} - Trắc nghiệm chuyên đề (${effectiveCount} câu)`;
+  } else if (promptLower.includes('văn') || promptLower.includes('kiều') || promptLower.includes('thơ')) {
+    detectedTopic = 'Đọc hiểu tác phẩm Văn học';
+    title = `Đề trắc nghiệm Ngữ văn ${grade} (${effectiveCount} câu)`;
+  }
+
+  // Pre-curated high quality repository of questions
+  const candidatePool = [
+    {
+      content: 'Điều kiện xác định của biểu thức P = √(4 - 2x) là:',
+      options: [
+        { id: 'A', content: 'x ≤ 2' },
+        { id: 'B', content: 'x ≥ 2' },
+        { id: 'C', content: 'x < 2' },
+        { id: 'D', content: 'x > 2' }
+      ],
+      correctAnswer: 'A',
+      explanation: 'Biểu thức dưới dấu căn có nghĩa khi 4 - 2x ≥ 0 <=> 2x ≤ 4 <=> x ≤ 2.',
+      topic: 'Căn bậc hai & Căn thức bậc ba',
+      cognitiveLevel: 'recognize',
+      difficulty: 'easy'
+    },
+    {
+      content: 'Giá trị rút gọn của biểu thức A = √( (3 - 2√2)² ) + 2√2 là:',
+      options: [
+        { id: 'A', content: '3' },
+        { id: 'B', content: '3 + 4√2' },
+        { id: 'C', content: '4√2 - 3' },
+        { id: 'D', content: '6' }
+      ],
+      correctAnswer: 'A',
+      explanation: 'Vì 3 = √9 > √8 = 2√2 nên 3 - 2√2 > 0. Ta có √( (3 - 2√2)² ) = |3 - 2√2| = 3 - 2√2. Vậy A = 3 - 2√2 + 2√2 = 3.',
+      topic: 'Căn bậc hai & Căn thức bậc ba',
+      cognitiveLevel: 'understand',
+      difficulty: 'medium'
+    },
+    {
+      content: 'Đồ thị hàm số y = (m - 2)x + 3 nghịch biến trên ℝ khi và chỉ khi:',
+      options: [
+        { id: 'A', content: 'm < 2' },
+        { id: 'B', content: 'm > 2' },
+        { id: 'C', content: 'm ≤ 2' },
+        { id: 'D', content: 'm ≠ 2' }
+      ],
+      correctAnswer: 'A',
+      explanation: 'Hàm số bậc nhất y = ax + b nghịch biến trên ℝ <=> hệ số a < 0 <=> m - 2 < 0 <=> m < 2.',
+      topic: 'Hàm số bậc nhất y = ax + b',
+      cognitiveLevel: 'understand',
+      difficulty: 'easy'
+    },
+    {
+      content: 'Góc tạo bởi đường thẳng (d): y = √3 x - 1 với trục hoành Ox có số đo là:',
+      options: [
+        { id: 'A', content: '60°' },
+        { id: 'B', content: '30°' },
+        { id: 'C', content: '45°' },
+        { id: 'D', content: '120°' }
+      ],
+      correctAnswer: 'A',
+      explanation: 'Hệ số góc a = √3 > 0. Gọi α là góc tạo bởi d và Ox, ta có tan α = a = √3 => α = 60°.',
+      topic: 'Hàm số bậc nhất y = ax + b',
+      cognitiveLevel: 'understand',
+      difficulty: 'medium'
+    },
+    {
+      content: 'Cặp số nào sau đây là nghiệm của hệ phương trình: { 2x + y = 7 ; x - 3y = 0 }?',
+      options: [
+        { id: 'A', content: '(3; 1)' },
+        { id: 'B', content: '(1; 5)' },
+        { id: 'C', content: '(6; 2)' },
+        { id: 'D', content: '(3; -1)' }
+      ],
+      correctAnswer: 'A',
+      explanation: 'Từ pt (2) suy ra x = 3y. Thay vào pt (1): 2(3y) + y = 7 <=> 7y = 7 <=> y = 1 => x = 3(1) = 3.',
+      topic: 'Hệ hai phương trình bậc nhất hai ẩn',
+      cognitiveLevel: 'apply',
+      difficulty: 'medium'
+    },
+    {
+      content: 'Cho tam giác ABC vuông tại A có AB = 6 cm, BC = 10 cm. Độ dài đường cao AH hạ từ đỉnh A là:',
+      options: [
+        { id: 'A', content: '4.8 cm' },
+        { id: 'B', content: '5.0 cm' },
+        { id: 'C', content: '4.0 cm' },
+        { id: 'D', content: '3.6 cm' }
+      ],
+      correctAnswer: 'A',
+      explanation: 'AC = √(BC² - AB²) = √(100 - 36) = 8 cm. Áp dụng hệ thức: AH . BC = AB . AC => AH = (6 . 8) / 10 = 4.8 cm.',
+      topic: 'Hệ thức lượng trong tam giác vuông',
+      cognitiveLevel: 'apply',
+      difficulty: 'medium'
+    },
+    {
+      content: 'Theo định luật Ôm cho đoạn mạch, cường độ dòng điện chạy qua dây dẫn:',
+      options: [
+        { id: 'A', content: 'Tỉ lệ thuận với hiệu điện thế giữa hai đầu dây và tỉ lệ nghịch với điện trở của dây' },
+        { id: 'B', content: 'Tỉ lệ nghịch với hiệu điện thế và tỉ lệ thuận với điện trở' },
+        { id: 'C', content: 'Không phụ thuộc vào hiệu điện thế đặt vào hai đầu dây' },
+        { id: 'D', content: 'Tỉ lệ thuận với cả hiệu điện thế và điện trở của dây' }
+      ],
+      correctAnswer: 'A',
+      explanation: 'Công thức định luật Ôm: I = U / R, I tỉ lệ thuận với U và tỉ lệ nghịch với R.',
+      topic: 'Định luật Ôm & Công suất dòng điện',
+      cognitiveLevel: 'recognize',
+      difficulty: 'easy'
+    },
+    {
+      content: 'Dãy chất nào sau đây chỉ gồm các oxit axit?',
+      options: [
+        { id: 'A', content: 'SO₂, CO₂, P₂O₅, SO₃' },
+        { id: 'B', content: 'CaO, SO₂, CuO, Na₂O' },
+        { id: 'C', content: 'CO, NO, SO₂, P₂O₅' },
+        { id: 'D', content: 'Fe₂O₃, Al₂O₃, SO₂, CO₂' }
+      ],
+      correctAnswer: 'A',
+      explanation: 'SO₂, CO₂, P₂O₅, SO₃ đều là phi kim kết hợp với oxi tạo oxit axit tương ứng với các axit H₂SO₃, H₂CO₃, H₃PO₄, H₂SO₄.',
+      topic: 'Tính chất hóa học của Axit & Bazơ',
+      cognitiveLevel: 'recognize',
+      difficulty: 'easy'
+    },
+    {
+      content: 'Choose the best option to complete the sentence: "If it rains tomorrow, we _______ the picnic."',
+      options: [
+        { id: 'A', content: 'will cancel' },
+        { id: 'B', content: 'would cancel' },
+        { id: 'C', content: 'cancelled' },
+        { id: 'D', content: 'had cancelled' }
+      ],
+      correctAnswer: 'A',
+      explanation: 'Câu điều kiện loại 1 diễn tả sự việc có thể xảy ra ở hiện tại hoặc tương lai: If + S + V(hiện tại đơn), S + will + V(nguyên mẫu).',
+      topic: 'English Grammar & Vocabulary',
+      cognitiveLevel: 'understand',
+      difficulty: 'easy'
+    },
+    {
+      content: 'Trong truyện ngắn "Lặng lẽ Sa Pa" của Nguyễn Thành Long, nhân vật anh thanh niên làm công tác gì?',
+      options: [
+        { id: 'A', content: 'Khí tượng kiêm vật lý địa cầu' },
+        { id: 'B', content: 'Khai thác khoáng sản' },
+        { id: 'C', content: 'Kiểm lâm bảo vệ rừng quốc gia' },
+        { id: 'D', content: 'Kỹ sư nông nghiệp trồng rau' }
+      ],
+      correctAnswer: 'A',
+      explanation: 'Anh thanh niên 26 tuổi sống một mình trên đỉnh núi Yên Sơn cao 2600m làm công tác khí tượng kiêm vật lý địa cầu.',
+      topic: 'Đọc hiểu tác phẩm Văn học',
+      cognitiveLevel: 'recognize',
+      difficulty: 'easy'
+    }
+  ];
+
+  // Pick matching or slice pool
+  let matchingQuestions = candidatePool.filter((q) => q.topic === detectedTopic);
+  if (matchingQuestions.length < effectiveCount) {
+    matchingQuestions = [...matchingQuestions, ...candidatePool.filter((q) => q.topic !== detectedTopic)];
+  }
+
+  const generatedQuestions = matchingQuestions.slice(0, effectiveCount).map((q, idx) => ({
+    ...q,
+    id: `q-ai-gen-${Date.now()}-${idx + 1}`
+  }));
+
+  return {
+    replyText: `Dạ thầy/cô! Tôi đã tạo thành công danh sách **${generatedQuestions.length} câu hỏi trắc nghiệm** theo yêu cầu "${userPrompt || detectedTopic}". Thầy/cô có thể xem trước, click sửa nhanh nội dung, đổi đáp án đúng hoặc bổ sung thêm câu hỏi ở khung bên dưới trước khi tạo đề nhé!`,
+    suggestedTitle: title,
+    subject,
+    grade,
+    questions: generatedQuestions
+  };
 }
 
 startServer();

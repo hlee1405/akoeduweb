@@ -25,12 +25,17 @@ import {
   ExternalLink,
   Check,
   Sliders,
-  Camera
+  Camera,
+  Shuffle,
+  Download,
+  FileSpreadsheet,
+  ChevronDown
 } from 'lucide-react';
 import { Exam, Question, ExamQuestionItem } from '../../../types';
 import { store } from '../../../services/store';
 import { useToast } from '../../../context/ToastContext';
 import { ExamInfoModal } from './ExamInfoModal';
+import { AIChatbotExamGenerator, GeneratedQuestionItem } from './AIChatbotExamGenerator';
 
 interface AzotaCreateExamModalProps {
   isOpen: boolean;
@@ -41,7 +46,7 @@ interface AzotaCreateExamModalProps {
   initialTab?: CreateTab;
 }
 
-type CreateTab = 'file' | 'compose' | 'quick_sheet' | 'bank';
+type CreateTab = 'bank' | 'quick_sheet' | 'ai' | 'random' | 'file' | 'compose';
 
 interface SelfComposedQuestion {
   id: string;
@@ -360,6 +365,9 @@ export const AzotaCreateExamModal: React.FC<AzotaCreateExamModalProps> = ({
   const [totalPoints, setTotalPoints] = useState(10);
   const [savedExamForInfo, setSavedExamForInfo] = useState<Exam | null>(null);
 
+  // Tab: AI Generated Questions
+  const [aiQuestions, setAiQuestions] = useState<GeneratedQuestionItem[]>([]);
+
   // Tab: Self-compose questions
   const [composedQuestions, setComposedQuestions] = useState<SelfComposedQuestion[]>(DEFAULT_COMPOSED_QUESTIONS);
 
@@ -457,12 +465,140 @@ export const AzotaCreateExamModal: React.FC<AzotaCreateExamModalProps> = ({
   });
   const [quickPasteText, setQuickPasteText] = useState('');
   const [attachedPdfName, setAttachedPdfName] = useState<string>('');
+  const [quickSubTab, setQuickSubTab] = useState<'excel' | 'quick_paste'>('excel');
+  const [excelUploadedFileName, setExcelUploadedFileName] = useState<string>('');
+
+  // Sub-tab 2: Quick Creator rows (Loại câu hỏi / Số lượng)
+  interface QuickCreationRow {
+    id: string;
+    type: string;
+    count: number;
+  }
+  const [quickCreationRows, setQuickCreationRows] = useState<QuickCreationRow[]>([
+    { id: '1', type: 'Trắc nghiệm (Chọn một)', count: 1 }
+  ]);
+
+  const handleAddQuickRow = () => {
+    const totalCurrent = quickCreationRows.reduce((sum, r) => sum + r.count, 0);
+    if (totalCurrent >= 50) {
+      warning('Đã đạt giới hạn', 'Số lượng câu hỏi được nhập tối đa cho mỗi lần tạo nhanh là 50 câu.');
+      return;
+    }
+    const newId = `row-${Date.now()}`;
+    setQuickCreationRows((prev) => [...prev, { id: newId, type: 'Trắc nghiệm (Chọn một)', count: 1 }]);
+  };
+
+  const handleRemoveQuickRow = (id: string) => {
+    if (quickCreationRows.length <= 1) return;
+    setQuickCreationRows((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const handleUpdateQuickRow = (id: string, updates: Partial<QuickCreationRow>) => {
+    setQuickCreationRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...updates } : r))
+    );
+  };
+
+  const totalQuickQuestionsCount = quickCreationRows.reduce((sum, r) => sum + r.count, 0);
+
+  const handleSaveQuickCreation = () => {
+    if (totalQuickQuestionsCount <= 0) {
+      warning('Chưa có câu hỏi', 'Vui lòng nhập số lượng câu hỏi cần tạo.');
+      return;
+    }
+
+    if (totalQuickQuestionsCount > 50) {
+      warning('Quá số lượng cho phép', 'Số lượng câu hỏi được nhập tối đa cho mỗi lần tạo nhanh là 50 câu.');
+      return;
+    }
+
+    // Generate quick question placeholders based on rows
+    let generated: {
+      content: string;
+      options: { id: string; content: string }[];
+      correctAnswer: string;
+      explanation: string;
+    }[] = [];
+
+    quickCreationRows.forEach((row, rowIdx) => {
+      for (let i = 1; i <= row.count; i++) {
+        const qIndex = generated.length + 1;
+        generated.push({
+          content: `Câu ${qIndex} [${row.type}]: Nhập nội dung câu hỏi tại đây...`,
+          options: [
+            { id: 'A', content: 'Phương án A' },
+            { id: 'B', content: 'Phương án B' },
+            { id: 'C', content: 'Phương án C' },
+            { id: 'D', content: 'Phương án D' }
+          ],
+          correctAnswer: 'A',
+          explanation: 'Lời giải chi tiết cho câu hỏi...'
+        });
+      }
+    });
+
+    setParsedQuestions(generated);
+    setExamTitle(`Đề thi tạo nhanh (${generated.length} câu)`);
+    success('Đã tạo câu hỏi nhanh', `Đã tạo ${generated.length} câu hỏi theo cấu hình của bạn.`);
+  };
+
+  const handleSimulateExcelUpload = () => {
+    setExcelUploadedFileName('Bang_tinh_cau_hoi_Toan_9.xlsx');
+    setExamTitle('Đề thi nhập từ Excel - Toán 9');
+    setParsedQuestions(SAMPLE_EXAM_20_QUESTIONS.slice(0, 10));
+    success('Tải tệp Excel thành công', 'Đã nhận diện 10 câu hỏi trắc nghiệm từ tệp Excel.');
+  };
+
+  const handleDownloadExcelTemplate = () => {
+    const csvContent = 'data:text/csv;charset=utf-8,' + encodeURIComponent(
+      'STT,Nội dung câu hỏi,Phương án A,Phương án B,Phương án C,Phương án D,Đáp án đúng,Lời giải chi tiết\n' +
+      '1,Căn bậc hai số học của 81 là:,9,-9,±9,81,A,Căn bậc hai số học là số không âm x sao cho x² = 81 => x = 9\n' +
+      '2,Hàm số nào đồng biến trên R?,y = 2 - 3x,y = (√3 - 2)x + 1,y = (2 - √3)x - 5,y = 2/x + 3,C,Vì a = 2 - √3 > 0 nên đồng biến trên R\n' +
+      '3,Đồ thị hàm số y = ax + 3 đi qua M(-1; 1) khi a bằng:,a = 2,a = -2,a = 4,a = -4,A,Thay (-1; 1) vào ta được a = 2\n'
+    );
+    const link = document.createElement('a');
+    link.setAttribute('href', csvContent);
+    link.setAttribute('download', 'Mau_nhap_cau_hoi_trac_nghiem.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    success('Đã tải mẫu bảng tính', 'Mẫu file câu hỏi đã được tải về máy của bạn.');
+  };
 
   // Tab 3: Question Bank
   const allBankQuestions = store.getQuestions().filter((q) => q.type === 'single_choice' || q.type === 'multiple_choice');
   const [selectedBankIds, setSelectedBankIds] = useState<Set<string>>(
     new Set(allBankQuestions.slice(0, 8).map((q) => q.id))
   );
+
+  // Tab 4: Random Exam Generator
+  const [randomCount, setRandomCount] = useState(10);
+  const [randomGrade, setRandomGrade] = useState('Khối 9');
+  const [randomSubject, setRandomSubject] = useState('Toán học');
+  const [randomDifficulty, setRandomDifficulty] = useState('all');
+  const [randomTopic, setRandomTopic] = useState('all');
+  const [randomGeneratedQuestions, setRandomGeneratedQuestions] = useState<Question[]>(() => {
+    return allBankQuestions.slice(0, 10);
+  });
+
+  const handleGenerateRandomQuestions = () => {
+    let pool = allBankQuestions.filter((q) => {
+      if (randomGrade !== 'all' && q.grade !== randomGrade) return false;
+      if (randomSubject !== 'all' && q.subject !== randomSubject) return false;
+      if (randomDifficulty !== 'all' && q.difficulty !== randomDifficulty) return false;
+      if (randomTopic !== 'all' && q.topic !== randomTopic) return false;
+      return true;
+    });
+
+    if (pool.length === 0) {
+      pool = allBankQuestions;
+    }
+
+    const shuffled = [...pool].sort(() => 0.5 - Math.random());
+    const selected = shuffled.slice(0, Math.min(randomCount, shuffled.length));
+    setRandomGeneratedQuestions(selected);
+    success('Đã tạo đề ngẫu nhiên', `Đã chọn ${selected.length} câu hỏi ngẫu nhiên từ ngân hàng.`);
+  };
 
   if (!isOpen) return null;
 
@@ -668,11 +804,49 @@ export const AzotaCreateExamModal: React.FC<AzotaCreateExamModalProps> = ({
           question: questionObj
         };
       });
+    } else if (activeTab === 'ai') {
+      const questionsList = aiQuestions.length > 0 ? aiQuestions : SAMPLE_EXAM_20_QUESTIONS.slice(0, 5);
+      const points = questionsList.length > 0 ? totalPoints / questionsList.length : 1;
+      examQuestions = questionsList.map((q, idx) => {
+        const qId = q.id || `q-ai-exam-${Date.now()}-${idx + 1}`;
+        const questionObj: Question = {
+          id: qId,
+          type: 'single_choice',
+          content: q.content,
+          options: q.options,
+          correctAnswers: [q.correctAnswer || 'A'],
+          explanation: q.explanation || '',
+          subject: examSubject,
+          grade: examGrade,
+          topic: q.topic || 'Trợ lý AI Soạn Đề',
+          cognitiveLevel: q.cognitiveLevel || 'understand',
+          difficulty: q.difficulty || 'medium',
+          tags: ['AI Generator', 'Trắc nghiệm'],
+          status: 'published',
+          createdAt: new Date().toISOString()
+        };
+        return {
+          questionId: qId,
+          points: parseFloat(points.toFixed(2)),
+          order: idx + 1,
+          question: questionObj
+        };
+      });
+    } else if (activeTab === 'random') {
+      const questionsList = randomGeneratedQuestions.length > 0 ? randomGeneratedQuestions : allBankQuestions.slice(0, randomCount);
+      const points = questionsList.length > 0 ? totalPoints / questionsList.length : 1;
+      examQuestions = questionsList.map((q, idx) => ({
+        questionId: q.id,
+        points: parseFloat(points.toFixed(2)),
+        order: idx + 1,
+        question: q
+      }));
     } else {
-      // From Bank
+      // From Bank (Tạo từ đầu)
       const selected = allBankQuestions.filter((q) => selectedBankIds.has(q.id));
-      const points = selected.length > 0 ? totalPoints / selected.length : 1;
-      examQuestions = selected.map((q, idx) => ({
+      const finalSelected = selected.length > 0 ? selected : allBankQuestions.slice(0, 8);
+      const points = finalSelected.length > 0 ? totalPoints / finalSelected.length : 1;
+      examQuestions = finalSelected.map((q, idx) => ({
         questionId: q.id,
         points: parseFloat(points.toFixed(2)),
         order: idx + 1,
@@ -792,73 +966,90 @@ export const AzotaCreateExamModal: React.FC<AzotaCreateExamModalProps> = ({
           </button>
         </div>
 
-        {/* 4 Main Method Tabs */}
-        <div className="px-6 border-b border-slate-200 bg-white shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-2 py-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('file')}
-            className={`py-2 px-2.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer ${
-              activeTab === 'file'
-                ? 'bg-indigo-50 border-indigo-300 text-indigo-700 shadow-2xs'
-                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <Upload className={`w-4 h-4 shrink-0 ${activeTab === 'file' ? 'text-indigo-600' : 'text-slate-400'}`} />
-            <div className="text-left min-w-0">
-              <span className="block leading-tight truncate">Tải file Word / PDF</span>
-              <span className="text-[10px] font-normal text-slate-400 hidden sm:block truncate">Tự bóc tách câu & đáp án</span>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            id="btn-tab-self-compose-exam"
-            onClick={() => setActiveTab('compose')}
-            className={`py-2 px-2.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer relative ${
-              activeTab === 'compose'
-                ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-2xs ring-1 ring-emerald-400/40'
-                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <span className="absolute -top-1.5 right-2 px-1.5 py-0.2 rounded-full bg-emerald-500 text-white text-[9px] font-black tracking-wider uppercase shadow-2xs">
-              Tự soạn
-            </span>
-            <Edit3 className={`w-4 h-4 shrink-0 ${activeTab === 'compose' ? 'text-emerald-600' : 'text-slate-400'}`} />
-            <div className="text-left min-w-0">
-              <span className="block leading-tight truncate">Tự soạn đề thi</span>
-              <span className="text-[10px] font-normal text-slate-400 hidden sm:block truncate">Soạn từng câu trực tiếp</span>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('quick_sheet')}
-            className={`py-2 px-2.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer ${
-              activeTab === 'quick_sheet'
-                ? 'bg-amber-50 border-amber-300 text-amber-800 shadow-2xs'
-                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            <Zap className={`w-4 h-4 shrink-0 ${activeTab === 'quick_sheet' ? 'text-amber-600' : 'text-slate-400'}`} />
-            <div className="text-left min-w-0">
-              <span className="block leading-tight truncate">Phiếu đáp án (OMR)</span>
-              <span className="text-[10px] font-normal text-slate-400 hidden sm:block truncate">Dán key/tô bảng đáp án</span>
-            </div>
-          </button>
-
+        {/* 5 Main Method Tabs */}
+        <div className="px-6 border-b border-slate-200 bg-white shrink-0 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 py-2.5">
+          {/* Tab 1: Tạo từ đầu */}
           <button
             type="button"
             onClick={() => setActiveTab('bank')}
             className={`py-2 px-2.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer ${
               activeTab === 'bank'
-                ? 'bg-blue-50 border-blue-300 text-blue-700 shadow-2xs'
+                ? 'bg-indigo-50 border-indigo-400 text-indigo-800 shadow-2xs'
                 : 'border-slate-200 text-slate-600 hover:bg-slate-50'
             }`}
           >
-            <BookOpen className={`w-4 h-4 shrink-0 ${activeTab === 'bank' ? 'text-blue-600' : 'text-slate-400'}`} />
+            <BookOpen className={`w-4 h-4 shrink-0 ${activeTab === 'bank' ? 'text-indigo-600' : 'text-slate-400'}`} />
             <div className="text-left min-w-0">
-              <span className="block leading-tight truncate">Ngân hàng câu hỏi</span>
-              <span className="text-[10px] font-normal text-slate-400 hidden sm:block truncate">{allBankQuestions.length} câu có sẵn</span>
+              <span className="block leading-tight truncate">1. Tạo từ đầu</span>
+              <span className="text-[10px] font-normal text-slate-400 hidden sm:block truncate">Từ ngân hàng</span>
+            </div>
+          </button>
+
+          {/* Tab 2: Tạo nhanh */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('quick_sheet')}
+            className={`py-2 px-2.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer ${
+              activeTab === 'quick_sheet'
+                ? 'bg-emerald-50 border-emerald-400 text-emerald-800 shadow-2xs'
+                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <Zap className={`w-4 h-4 shrink-0 ${activeTab === 'quick_sheet' ? 'text-emerald-600' : 'text-slate-400'}`} />
+            <div className="text-left min-w-0">
+              <span className="block leading-tight truncate">2. Tạo nhanh</span>
+              <span className="text-[10px] font-normal text-slate-400 hidden sm:block truncate">Excel / Phiếu OMR</span>
+            </div>
+          </button>
+
+          {/* Tab 3: Tạo bằng AI */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('ai')}
+            className={`py-2 px-2.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer ${
+              activeTab === 'ai'
+                ? 'bg-violet-50 border-violet-400 text-violet-800 shadow-2xs'
+                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <Sparkles className={`w-4 h-4 shrink-0 ${activeTab === 'ai' ? 'text-violet-600' : 'text-slate-400'}`} />
+            <div className="text-left min-w-0">
+              <span className="block leading-tight truncate">3. Tạo bằng AI</span>
+              <span className="text-[10px] font-normal text-slate-400 hidden sm:block truncate">Từ tài liệu/ảnh</span>
+            </div>
+          </button>
+
+          {/* Tab 4: Đề ngẫu nhiên */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('random')}
+            className={`py-2 px-2.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer ${
+              activeTab === 'random'
+                ? 'bg-amber-50 border-amber-400 text-amber-800 shadow-2xs'
+                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <Shuffle className={`w-4 h-4 shrink-0 ${activeTab === 'random' ? 'text-amber-600' : 'text-slate-400'}`} />
+            <div className="text-left min-w-0">
+              <span className="block leading-tight truncate">4. Đề ngẫu nhiên</span>
+              <span className="text-[10px] font-normal text-slate-400 hidden sm:block truncate">Ma trận câu hỏi</span>
+            </div>
+          </button>
+
+          {/* Tab 5: Tạo từ PDF/Word */}
+          <button
+            type="button"
+            onClick={() => setActiveTab('file')}
+            className={`py-2 px-2.5 rounded-xl font-bold text-xs flex items-center gap-2 border transition-all cursor-pointer ${
+              activeTab === 'file'
+                ? 'bg-blue-50 border-blue-400 text-blue-800 shadow-2xs'
+                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <Upload className={`w-4 h-4 shrink-0 ${activeTab === 'file' ? 'text-blue-600' : 'text-slate-400'}`} />
+            <div className="text-left min-w-0">
+              <span className="block leading-tight truncate">5. Tạo từ PDF/Word</span>
+              <span className="text-[10px] font-normal text-slate-400 hidden sm:block truncate">Tải file tài liệu</span>
             </div>
           </button>
         </div>
@@ -1298,139 +1489,231 @@ export const AzotaCreateExamModal: React.FC<AzotaCreateExamModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: QUICK OMR SHEET GENERATOR (30 SECONDS) */}
+          {/* TAB 2: EXCEL IMPORT & QUICK SHEET GENERATOR */}
           {activeTab === 'quick_sheet' && (
             <div className="space-y-4">
-              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl text-xs space-y-2">
-                <div className="flex items-center gap-2 text-amber-900 font-bold">
-                  <Zap className="w-4 h-4 text-amber-600" />
-                  <span>Tạo Đề Trắc Nghiệm Bằng Phiếu Đáp Án (Tối ưu cho đề thi giấy / PDF có sẵn)</span>
-                </div>
-                <p className="text-amber-800 leading-relaxed text-[11px]">
-                  Thầy cô đã có sẵn file đề thi hoặc phát đề giấy cho học sinh trên lớp? Chỉ cần chọn số lượng câu, tô bảng đáp án hoặc dán nhanh chuỗi đáp án (ví dụ 1A 2B 3C...) là có ngay ca thi trực tuyến tự động chấm điểm 100%!
-                </p>
+              {/* Sub-tabs switcher (Nhập từ Excel / Tạo nhanh) */}
+              <div className="flex items-center gap-6 border-b border-slate-200 text-sm font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setQuickSubTab('excel')}
+                  className={`pb-2.5 border-b-2 transition-all cursor-pointer ${
+                    quickSubTab === 'excel'
+                      ? 'border-blue-600 text-blue-600 font-bold'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Nhập từ Excel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQuickSubTab('quick_paste')}
+                  className={`pb-2.5 border-b-2 transition-all cursor-pointer ${
+                    quickSubTab === 'quick_paste'
+                      ? 'border-blue-600 text-blue-600 font-bold'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Tạo nhanh
+                </button>
               </div>
 
-              {/* Step 1: Pick number of questions */}
-              <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-3">
-                <label className="font-bold text-slate-800 block text-xs">
-                  Bước 1: Chọn số lượng câu hỏi trắc nghiệm
-                </label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {[10, 15, 20, 25, 30, 40, 50].map((num) => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => handleSetQuickCount(num)}
-                      className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
-                        quickQuestionCount === num
-                          ? 'bg-amber-600 text-white shadow-xs'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      {num} câu
-                    </button>
-                  ))}
-
-                  <div className="flex items-center gap-1.5 ml-auto text-xs">
-                    <span className="text-slate-500 font-medium">Tùy chỉnh:</span>
-                    <input
-                      type="number"
-                      min="1"
-                      max="100"
-                      value={quickQuestionCount}
-                      onChange={(e) => handleSetQuickCount(Math.max(1, Number(e.target.value)))}
-                      className="w-16 px-2 py-1 bg-slate-50 rounded-lg border border-slate-300 font-bold text-center text-slate-900 outline-hidden"
-                    />
-                    <span className="text-slate-500">câu</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Step 2: Quick Paste Answer String (Azota Quick Paste) */}
-              <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="font-bold text-slate-800 block text-xs flex items-center gap-1.5">
-                    <Copy className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Bước 2: Dán nhanh chuỗi đáp án (Copy & Paste Key)</span>
-                  </label>
-
-                  <button
-                    type="button"
-                    onClick={handleRandomizeQuickAnswers}
-                    className="text-[11px] font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 cursor-pointer"
+              {/* Sub-view 1: Nhập từ Excel */}
+              {quickSubTab === 'excel' && (
+                <div className="space-y-6">
+                  {/* Drag & Drop Box */}
+                  <div
+                    onClick={handleSimulateExcelUpload}
+                    className="border border-dashed border-slate-300 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/20 rounded-xl p-10 sm:p-12 text-center cursor-pointer transition-all group flex flex-col items-center justify-center min-h-[200px]"
                   >
-                    <RefreshCw className="w-3 h-3" />
-                    <span>Tạo đáp án mẫu ngẫu nhiên</span>
-                  </button>
-                </div>
+                    {/* Blue Tray Icon */}
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-blue-500 mb-3 group-hover:scale-110 transition-transform">
+                      <svg className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 8h14M5 8a2 2 0 01-2-2V5a2 2 0 012-2h4.586a1 1 0 01.707.293l1.414 1.414a1 1 0 00.707.293H19a2 2 0 012 2v1M5 8a2 2 0 00-2 2v8a2 2 0 002 2h14a2 2 0 002-2v-8a2 2 0 00-2-2m-9 5a2 2 0 002 2h2a2 2 0 002-2" />
+                      </svg>
+                    </div>
 
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={quickPasteText}
-                    onChange={(e) => setQuickPasteText(e.target.value)}
-                    placeholder="Ví dụ dán: 1A 2B 3C 4D 5A 6B hoặc chuỗi ABCDABCD..."
-                    className="flex-1 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-800 font-medium outline-hidden focus:border-amber-600"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleApplyQuickPaste}
-                    className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer shrink-0"
-                  >
-                    Áp dụng đáp án
-                  </button>
-                </div>
-              </div>
-
-              {/* Step 3: Interactive Answer Sheet Grid */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-slate-800 text-xs">
-                    Phiếu trả lời trắc nghiệm ({quickQuestionCount} câu • Điểm mỗi câu: {(totalPoints / quickQuestionCount).toFixed(2)}đ)
-                  </span>
-                  <span className="text-[11px] text-slate-500">
-                    Bấm chọn chữ cái A, B, C, D để lưu đáp án
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[320px] overflow-y-auto pr-1">
-                  {Array.from({ length: quickQuestionCount }).map((_, idx) => {
-                    const qNum = idx + 1;
-                    const selectedOpt = quickAnswers[qNum] || 'A';
-
-                    return (
-                      <div
-                        key={qNum}
-                        className="bg-white p-2 rounded-xl border border-slate-200 flex items-center justify-between shadow-2xs"
-                      >
-                        <span className="font-bold text-slate-600 text-xs w-6">
-                          {qNum}.
+                    <p className="text-sm font-medium text-slate-800 mb-1">
+                      {excelUploadedFileName ? (
+                        <span className="text-emerald-700 font-bold flex items-center gap-1.5 justify-center">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          Đã tải lên: {excelUploadedFileName}
                         </span>
-                        <div className="flex items-center gap-1">
-                          {['A', 'B', 'C', 'D'].map((opt) => {
-                            const isSelected = selectedOpt === opt;
-                            return (
-                              <button
-                                key={opt}
-                                type="button"
-                                onClick={() => handleSelectQuickAnswer(qNum, opt)}
-                                className={`w-6 h-6 rounded-md font-bold text-[11px] transition-all cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-amber-600 text-white shadow-xs scale-105'
-                                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                }`}
-                              >
-                                {opt}
-                              </button>
-                            );
-                          })}
+                      ) : (
+                        'Kéo tệp Excel vào đây'
+                      )}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      (Định dạng hợp lệ: .xls, .xlsx)
+                    </p>
+                  </div>
+
+                  {/* Instructions Section */}
+                  <div className="space-y-2 text-sm text-slate-800">
+                    <h4 className="font-bold text-sm sm:text-base text-slate-900">
+                      Hướng dẫn nhập hàng loạt:
+                    </h4>
+                    <div className="space-y-2 pl-1 text-xs sm:text-sm">
+                      <div>
+                        <p className="font-medium text-slate-800">1. Tải mẫu bảng tính:</p>
+                        <div className="flex items-center gap-4 pl-4 pt-1">
+                          <button
+                            type="button"
+                            onClick={handleDownloadExcelTemplate}
+                            className="text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center gap-1.5 font-medium cursor-pointer"
+                          >
+                            <Download className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Tải mẫu Excel</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDownloadExcelTemplate}
+                            className="text-blue-600 hover:text-blue-700 hover:underline inline-flex items-center gap-1.5 font-medium cursor-pointer"
+                          >
+                            <FileSpreadsheet className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Xem mẫu Sheet</span>
+                          </button>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      <div>
+                        <p className="font-medium text-slate-800">2. Nhập dữ liệu câu hỏi vào bảng tính.</p>
+                        <p className="text-xs text-slate-400 pl-4 mt-0.5">Vui lòng không thay đổi định dạng.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-medium text-slate-800">3. Lưu và tải bảng tính lên.</p>
+                      </div>
+
+                      <div>
+                        <p className="font-medium text-slate-800">4. Vui lòng chờ hệ thống xử lý bảng tính của bạn.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Supported Question Types Badges */}
+                  <div className="pt-2">
+                    <div className="flex items-center gap-1.5 flex-wrap text-xs text-slate-700">
+                      <span className="font-medium text-slate-900">Những câu hỏi có thể nhập hàng loạt:</span>
+                      <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-md text-[11px] text-slate-600 font-medium">Trắc nghiệm (Chọn một)</span>
+                      <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-md text-[11px] text-slate-600 font-medium">Trắc nghiệm (Chọn nhiều)</span>
+                      <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-md text-[11px] text-slate-600 font-medium">Trắc nghiệm (đúng sai)</span>
+                      <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-md text-[11px] text-slate-600 font-medium">Sắp xếp</span>
+                      <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-md text-[11px] text-slate-600 font-medium">Điền vào chỗ trống (chọn)</span>
+                      <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-md text-[11px] text-slate-600 font-medium">Điền vào chỗ trống (kéo thả)</span>
+                      <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-md text-[11px] text-slate-600 font-medium">Điền vào chỗ trống (viết)</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* Sub-view 2: Tạo nhanh (Cấu hình loại câu hỏi & Số lượng) */}
+              {quickSubTab === 'quick_paste' && (
+                <div className="max-w-xl mx-auto py-2 space-y-4">
+                  <div className="p-5 sm:p-6 bg-white border border-slate-200/90 rounded-2xl shadow-2xs space-y-4">
+                    {/* Rows */}
+                    <div className="space-y-3.5">
+                      {quickCreationRows.map((row, idx) => (
+                        <div key={row.id} className="grid grid-cols-12 gap-3 items-end">
+                          <div className="col-span-8">
+                            {idx === 0 && (
+                              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                                Loại câu hỏi
+                              </label>
+                            )}
+                            <div className="relative">
+                              <select
+                                value={row.type}
+                                onChange={(e) => handleUpdateQuickRow(row.id, { type: e.target.value })}
+                                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 outline-hidden focus:border-blue-500 appearance-none pr-8 cursor-pointer shadow-2xs"
+                              >
+                                <option value="Trắc nghiệm (Chọn một)">Trắc nghiệm (Chọn một)</option>
+                                <option value="Trắc nghiệm (Chọn nhiều)">Trắc nghiệm (Chọn nhiều)</option>
+                                <option value="Trắc nghiệm (đúng sai)">Trắc nghiệm (đúng sai)</option>
+                                <option value="Sắp xếp">Sắp xếp</option>
+                                <option value="Điền vào chỗ trống (chọn)">Điền vào chỗ trống (chọn)</option>
+                                <option value="Điền vào chỗ trống (kéo thả)">Điền vào chỗ trống (kéo thả)</option>
+                                <option value="Điền vào chỗ trống (viết)">Điền vào chỗ trống (viết)</option>
+                              </select>
+                              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                            </div>
+                          </div>
+
+                          <div className="col-span-4 flex items-center gap-1.5">
+                            <div className="flex-1">
+                              {idx === 0 && (
+                                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                                  Số lượng
+                                </label>
+                              )}
+                              <input
+                                type="number"
+                                min="1"
+                                max="50"
+                                value={row.count}
+                                onChange={(e) => handleUpdateQuickRow(row.id, { count: Math.max(1, Number(e.target.value)) })}
+                                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-center text-slate-900 outline-hidden focus:border-blue-500 shadow-2xs"
+                              />
+                            </div>
+
+                            {quickCreationRows.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveQuickRow(row.id)}
+                                className="p-2.5 text-slate-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition-colors cursor-pointer shrink-0"
+                                title="Xóa lựa chọn này"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Button: + Thêm lựa chọn */}
+                    <button
+                      type="button"
+                      onClick={handleAddQuickRow}
+                      className="w-full py-2.5 border border-dashed border-slate-300 hover:border-blue-400 bg-slate-50/50 hover:bg-blue-50/30 rounded-xl text-xs font-medium text-slate-700 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-slate-600" />
+                      <span>Thêm lựa chọn</span>
+                    </button>
+
+                    {/* Note under button */}
+                    <p className="text-[11px] text-slate-400 text-center italic">
+                      (Số lượng câu hỏi được nhập tối đa cho mỗi lần tạo nhanh là 50)
+                    </p>
+
+                    <div className="border-t border-slate-200/80 pt-1">
+                      {/* Button: + Thêm câu hỏi */}
+                      <button
+                        type="button"
+                        onClick={handleAddQuickRow}
+                        className="w-full py-2.5 border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-800 flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-slate-600" />
+                        <span>Thêm câu hỏi</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Large Save button */}
+                  <button
+                    type="button"
+                    onClick={handleSaveQuickCreation}
+                    className={`w-full py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs ${
+                      totalQuickQuestionsCount > 0
+                        ? 'bg-[#C5CCD6] hover:bg-blue-600 hover:text-white text-slate-700 active:scale-[0.99]'
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
+                  >
+                    <Check className="w-4 h-4 stroke-[3]" />
+                    <span>Lưu</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -1504,12 +1787,148 @@ export const AzotaCreateExamModal: React.FC<AzotaCreateExamModalProps> = ({
               </div>
             </div>
           )}
+
+          {/* TAB 4: RANDOM EXAM MATRIX GENERATOR */}
+          {activeTab === 'random' && (
+            <div className="space-y-4">
+              <div className="p-4 bg-amber-50/80 border border-amber-200 rounded-2xl text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-900 font-bold">
+                    <Shuffle className="w-4 h-4 text-amber-600" />
+                    <span>Tạo Đề Thi Ngẫu Nhiên Từ Danh Sách Câu Hỏi</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleGenerateRandomQuestions}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Trộn & Tạo lại đề ngẫu nhiên</span>
+                  </button>
+                </div>
+                <p className="text-amber-800 leading-relaxed text-[11px]">
+                  Hệ thống tự động lọc và bốc ngẫu nhiên các câu hỏi trắc nghiệm từ ngân hàng theo số lượng và cấu hình của bạn.
+                </p>
+              </div>
+
+              {/* Random Matrix Controls */}
+              <div className="p-4 bg-white rounded-2xl border border-slate-200 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Số lượng câu hỏi</label>
+                  <select
+                    value={randomCount}
+                    onChange={(e) => {
+                      setRandomCount(Number(e.target.value));
+                    }}
+                    className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 font-bold text-slate-800"
+                  >
+                    <option value={5}>5 câu</option>
+                    <option value={10}>10 câu</option>
+                    <option value={15}>15 câu</option>
+                    <option value={20}>20 câu</option>
+                    <option value={30}>30 câu</option>
+                    <option value={40}>40 câu</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Khối lớp</label>
+                  <select
+                    value={randomGrade}
+                    onChange={(e) => setRandomGrade(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 font-bold text-slate-800"
+                  >
+                    <option value="all">Tất cả các khối</option>
+                    <option value="Khối 9">Khối 9</option>
+                    <option value="Khối 8">Khối 8</option>
+                    <option value="Khối 7">Khối 7</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Môn học</label>
+                  <select
+                    value={randomSubject}
+                    onChange={(e) => setRandomSubject(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 font-bold text-slate-800"
+                  >
+                    <option value="all">Tất cả môn</option>
+                    <option value="Toán học">Toán học</option>
+                    <option value="Vật lý">Vật lý</option>
+                    <option value="Hóa học">Hóa học</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">Mức độ khó</label>
+                  <select
+                    value={randomDifficulty}
+                    onChange={(e) => setRandomDifficulty(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 font-bold text-slate-800"
+                  >
+                    <option value="all">Ngẫu nhiên mọi độ khó</option>
+                    <option value="easy">Nhận biết (Dễ)</option>
+                    <option value="medium">Thông hiểu (Vừa)</option>
+                    <option value="hard">Vận dụng cao (Khó)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Preview of Generated Questions */}
+              <div className="space-y-2">
+                <span className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                  <span>Danh sách {randomGeneratedQuestions.length} câu đã bốc ngẫu nhiên:</span>
+                </span>
+
+                <div className="max-h-[320px] overflow-y-auto space-y-2 pr-1">
+                  {randomGeneratedQuestions.map((q, idx) => (
+                    <div key={q.id} className="p-3 bg-white rounded-xl border border-slate-200 space-y-1 text-xs shadow-2xs">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-amber-700">Câu {idx + 1}:</span>
+                        <span className="font-medium text-slate-800">{q.content}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        Đáp án đúng: <strong className="text-emerald-700">{q.correctAnswers?.join(', ')}</strong> • {q.topic} • {q.grade}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: AI CHATBOT GENERATOR */}
+          {activeTab === 'ai' && (
+            <AIChatbotExamGenerator
+              initialSubject={examSubject}
+              initialGrade={examGrade}
+              onApplyQuestions={(questions, meta) => {
+                setAiQuestions(questions);
+                if (meta?.title) setExamTitle(meta.title);
+                if (meta?.subject) setExamSubject(meta.subject);
+                if (meta?.grade) setExamGrade(meta.grade);
+                success('Đã nạp câu hỏi AI vào đề thi', `Đã cập nhật ${questions.length} câu hỏi. Thầy/cô có thể lưu vào kho đề hoặc giao thi ngay!`);
+              }}
+            />
+          )}
         </div>
 
         {/* Modal Footer with Actions */}
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-3 shrink-0 flex-wrap">
           <div className="text-xs text-slate-500">
-            Tổng số câu: <strong className="text-slate-800">{activeTab === 'compose' ? composedQuestions.length : activeTab === 'file' ? parsedQuestions.length : activeTab === 'quick_sheet' ? quickQuestionCount : selectedBankIds.size} câu</strong> • Thang điểm: <strong className="text-indigo-600">10 điểm</strong>
+            Tổng số câu: <strong className="text-slate-800">
+              {activeTab === 'ai'
+                ? aiQuestions.length
+                : activeTab === 'compose'
+                ? composedQuestions.length
+                : activeTab === 'file'
+                ? parsedQuestions.length
+                : activeTab === 'quick_sheet'
+                ? quickQuestionCount
+                : activeTab === 'random'
+                ? randomGeneratedQuestions.length
+                : selectedBankIds.size} câu
+            </strong> • Thang điểm: <strong className="text-indigo-600">10 điểm</strong>
           </div>
 
           <div className="flex items-center gap-2.5">

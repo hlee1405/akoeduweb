@@ -6,7 +6,9 @@ import {
   Trash2,
   Check,
   Info,
-  Lock
+  Sparkles,
+  ChevronDown,
+  AlertTriangle
 } from 'lucide-react';
 import { store } from '../../../services/store';
 import { ClassRoom, CalendarSession, ClassScheduleItem, DayOfWeek, ScheduleRepeatType } from '../../../types';
@@ -46,6 +48,69 @@ const COLOR_OPTIONS = [
   { id: 'rose', label: 'Đỏ hồng', bg: 'bg-rose-500', border: 'border-rose-600', text: 'text-white' }
 ];
 
+const DURATION_PRESETS = [
+  { label: '45 phút', minutes: 45 },
+  { label: '60 phút', minutes: 60 },
+  { label: '90 phút (1.5h)', minutes: 90 },
+  { label: '120 phút (2h)', minutes: 120 },
+  { label: '150 phút (2.5h)', minutes: 150 }
+];
+
+/**
+ * Smart normalizer for time strings (supports 24h, 12h, SA/CH, AM/PM, e.g. "11:35 CH", "1h30", "14:00")
+ */
+export function normalizeTimeString(timeStr: string): string {
+  if (!timeStr) return '07:30';
+  let s = timeStr.trim().toLowerCase();
+
+  const isPM = s.includes('ch') || s.includes('pm') || s.includes('chiều') || s.includes('tối');
+  const isAM = s.includes('sa') || s.includes('am') || s.includes('sáng');
+
+  // Replace 'h' with ':' if present like '14h30' -> '14:30'
+  s = s.replace('h', ':');
+  // Strip non-digit and non-colon
+  s = s.replace(/[^0-9:]/g, '');
+
+  let parts = s.split(':');
+  let h = parseInt(parts[0] || '0', 10);
+  let m = parseInt(parts[1] || '0', 10);
+
+  if (isNaN(h)) h = 7;
+  if (isNaN(m)) m = 0;
+
+  if (isPM && h < 12) {
+    h += 12;
+  } else if (isAM && h === 12) {
+    h = 0;
+  }
+
+  h = Math.max(0, Math.min(23, h));
+  m = Math.max(0, Math.min(59, m));
+
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+export function timeToMinutes(timeStr: string): number {
+  const norm = normalizeTimeString(timeStr);
+  const [h, m] = norm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+export function minutesToTime(totalMins: number): string {
+  const norm = ((totalMins % 1440) + 1440) % 1440;
+  const h = Math.floor(norm / 60);
+  const m = norm % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+export function getTodayDateStr(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
   isOpen,
   onClose,
@@ -60,7 +125,7 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
   onScheduleSaved,
   onDeleted
 }) => {
-  const { success, warning } = useToast();
+  const { success, warning, info } = useToast();
   const [classes, setClasses] = useState<ClassRoom[]>(store.getClasses());
 
   // Form states
@@ -69,13 +134,14 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
   const [subject, setSubject] = useState<string>('Toán học');
   const [date, setDate] = useState<string>('');
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(1);
-  const [startTime, setStartTime] = useState<string>('16:00');
-  const [endTime, setEndTime] = useState<string>('18:00');
+  const [startTime, setStartTime] = useState<string>('07:30');
+  const [endTime, setEndTime] = useState<string>('09:00');
   const [room, setRoom] = useState<string>('Phòng 201');
   const [color, setColor] = useState<string>('indigo');
   const [notes, setNotes] = useState<string>('');
   const [isCustomClass, setIsCustomClass] = useState<boolean>(false);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState<boolean>(false);
+  const [showConflictPopup, setShowConflictPopup] = useState<boolean>(false);
 
   // Recurrence states (Google Calendar style)
   const [repeatType, setRepeatType] = useState<ScheduleRepeatType>('weekly');
@@ -89,6 +155,7 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
   useEffect(() => {
     setClasses(store.getClasses());
     setIsConfirmingDelete(false);
+    setShowConflictPopup(false);
   }, [isOpen]);
 
   useEffect(() => {
@@ -105,8 +172,8 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
       setClassName(scheduleItemToEdit.label || cls?.name || 'Ca học');
       setSubject(cls?.subject || 'Toán học');
       setSelectedDay(scheduleItemToEdit.dayOfWeek);
-      setStartTime(scheduleItemToEdit.startTime);
-      setEndTime(scheduleItemToEdit.endTime);
+      setStartTime(normalizeTimeString(scheduleItemToEdit.startTime || '07:30'));
+      setEndTime(normalizeTimeString(scheduleItemToEdit.endTime || '09:00'));
       setRoom(scheduleItemToEdit.room || 'Phòng 201');
       setColor(scheduleItemToEdit.color || 'indigo');
       setNotes(scheduleItemToEdit.notes || '');
@@ -131,8 +198,8 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
       setClassName(sessionToEdit.className);
       setSubject(sessionToEdit.subject || 'Toán học');
       setDate(sessionToEdit.date);
-      setStartTime(sessionToEdit.startTime);
-      setEndTime(sessionToEdit.endTime);
+      setStartTime(normalizeTimeString(sessionToEdit.startTime || '07:30'));
+      setEndTime(normalizeTimeString(sessionToEdit.endTime || '09:00'));
       setRoom(sessionToEdit.room || '');
       setColor(sessionToEdit.color || 'indigo');
       setNotes(sessionToEdit.notes || '');
@@ -167,17 +234,13 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
     }
 
     // Case 3: Create Mode (from Calendar or ScheduleManager)
-    const defaultDate = initialDate || '2026-09-17';
-    const defaultStart = initialStartTime || '16:00';
-    let defaultEnd = initialEndTime || '18:00';
+    const defaultDate = initialDate || getTodayDateStr();
+    const defaultStart = normalizeTimeString(initialStartTime || '07:30');
+    let defaultEnd = initialEndTime ? normalizeTimeString(initialEndTime) : '';
 
-    if (!initialEndTime) {
-      const [hStr, mStr] = defaultStart.split(':');
-      const startMinutes = (parseInt(hStr, 10) || 16) * 60 + (parseInt(mStr || '0', 10) || 0);
-      const endMinutes = startMinutes + 120; // 2 hours
-      const endH = Math.min(23, Math.floor(endMinutes / 60));
-      const endM = endMinutes % 60;
-      defaultEnd = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+    if (!defaultEnd) {
+      const startMins = timeToMinutes(defaultStart);
+      defaultEnd = minutesToTime(startMins + 90); // 90 mins default
     }
 
     setDate(defaultDate);
@@ -217,12 +280,15 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
     }
   }, [isOpen, sessionToEdit, scheduleItemToEdit, initialClassId, initialDate, initialStartTime, initialEndTime, classes]);
 
-  // Calculate duration string e.g. "2 giờ" or "90 phút"
+  // Calculate duration string e.g. "90 phút (1.5 giờ)"
   const durationText = useMemo(() => {
-    const [h1, m1] = startTime.split(':').map(Number);
-    const [h2, m2] = endTime.split(':').map(Number);
-    if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) return '';
-    const diff = h2 * 60 + m2 - (h1 * 60 + m1);
+    const startMins = timeToMinutes(startTime);
+    let endMins = timeToMinutes(endTime);
+    if (endMins <= startMins && endMins < 12 * 60 && startMins >= 11 * 60) {
+      // Auto treat e.g. 11:35 to 01:00 as 11:35 to 13:00 (PM)
+      endMins += 12 * 60;
+    }
+    const diff = endMins - startMins;
     if (diff <= 0) return '';
     const hours = Math.floor(diff / 60);
     const mins = diff % 60;
@@ -231,11 +297,43 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
     return `${mins} phút`;
   }, [startTime, endTime]);
 
+  // Real-time conflict detection with other sessions on the same date
+  const conflictingSessions = useMemo(() => {
+    if (!isOpen) return [];
+    const effectiveDate = repeatType === 'none' && specificDate ? specificDate : (date || specificDate || initialDate || '2026-09-17');
+    const startMins = timeToMinutes(startTime);
+    let endMins = timeToMinutes(endTime);
+    if (endMins <= startMins && endMins < 12 * 60 && startMins >= 11 * 60) {
+      endMins += 12 * 60;
+    }
+    if (endMins <= startMins) {
+      endMins = startMins + 90;
+    }
+
+    const allSessions = store.getSessions();
+    const editingSessionId = sessionToEdit?.id;
+
+    return allSessions.filter((s) => {
+      // Don't compare against itself
+      if (editingSessionId && s.id === editingSessionId) return false;
+      // Match date
+      if (s.date !== effectiveDate) return false;
+
+      const sStart = timeToMinutes(s.startTime || '07:00');
+      let sEnd = timeToMinutes(s.endTime || '08:30');
+      if (sEnd <= sStart) sEnd = sStart + 90;
+
+      // Overlap condition: StartA < EndB and EndA > StartB
+      const isOverlap = startMins < sEnd && endMins > sStart;
+      return isOverlap;
+    });
+  }, [isOpen, date, specificDate, initialDate, startTime, endTime, repeatType, sessionToEdit]);
+
   const handleClassSelectChange = (val: string) => {
     setSelectedClassId(val);
     if (val === 'custom') {
       setIsCustomClass(true);
-      setClassName('');
+      setClassName('Ca học bổ trợ');
     } else {
       setIsCustomClass(false);
       const cls = classes.find((c) => c.id === val);
@@ -256,29 +354,44 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleStartTimeChange = (val: string) => {
+    const normalizedStart = normalizeTimeString(val);
+    setStartTime(normalizedStart);
 
-    if (!className.trim()) {
-      warning('Thiếu thông tin', 'Vui lòng nhập tên lớp hoặc ca học.');
-      return;
+    // If current endTime is equal or earlier than new startTime, automatically push endTime forward by 90 minutes
+    const startMins = timeToMinutes(normalizedStart);
+    const endMins = timeToMinutes(endTime);
+
+    if (endMins <= startMins) {
+      const newEnd = minutesToTime(startMins + 90);
+      setEndTime(newEnd);
+    }
+  };
+
+  const applyDurationPreset = (presetMinutes: number) => {
+    const startMins = timeToMinutes(startTime);
+    const newEnd = minutesToTime(startMins + presetMinutes);
+    setEndTime(newEnd);
+  };
+
+  const executeSaveSession = () => {
+    let finalStart = normalizeTimeString(startTime);
+    let finalEnd = normalizeTimeString(endTime);
+
+    let startMins = timeToMinutes(finalStart);
+    let endMins = timeToMinutes(finalEnd);
+
+    if (endMins <= startMins) {
+      if (endMins < 12 * 60 && (endMins + 12 * 60) > startMins) {
+        endMins += 12 * 60;
+        finalEnd = minutesToTime(endMins);
+      } else {
+        endMins = startMins + 90;
+        finalEnd = minutesToTime(endMins);
+      }
     }
 
-    if (!date && repeatType !== 'none') {
-      warning('Thiếu ngày học', 'Vui lòng chọn ngày bắt đầu cho ca học.');
-      return;
-    }
-
-    if (repeatType === 'none' && !specificDate) {
-      warning('Thiếu ngày học', 'Vui lòng chọn ngày diễn ra ca học.');
-      return;
-    }
-
-    if (startTime >= endTime) {
-      warning('Thời gian không hợp lệ', 'Giờ kết thúc phải sau giờ bắt đầu.');
-      return;
-    }
-
+    const effectiveDate = date || specificDate || initialDate || '2026-09-17';
     const classId = isCustomClass ? undefined : selectedClassId;
     let savedScheduleItemId = scheduleItemToEdit?.id || sessionToEdit?.scheduleItemId;
     let updatedSchedule: ClassScheduleItem[] | undefined;
@@ -293,8 +406,8 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
         const newScheduleItem: ClassScheduleItem = {
           id: scheduleItemId,
           dayOfWeek: selectedDay,
-          startTime,
-          endTime,
+          startTime: finalStart,
+          endTime: finalEnd,
           room: room.trim() || undefined,
           label: className.trim(),
           color,
@@ -305,8 +418,8 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
           repeatEndType: repeatType === 'custom' ? repeatEndType : repeatType === 'none' ? 'until_date' : 'never',
           repeatEndDate: repeatType === 'custom' && repeatEndType === 'until_date' ? repeatEndDate : undefined,
           repeatCount: repeatType === 'custom' && repeatEndType === 'after_count' ? repeatCount : undefined,
-          startDate: date,
-          specificDate: repeatType === 'none' ? specificDate || date : undefined
+          startDate: effectiveDate,
+          specificDate: repeatType === 'none' ? specificDate || effectiveDate : undefined
         };
 
         const existingSchedule = [...(cls.schedule || [])];
@@ -322,15 +435,15 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
       }
     }
 
-    // 2. Prepare CalendarSession payload
-    const sessionDate = repeatType === 'none' && specificDate ? specificDate : date;
+    // 2. Prepare CalendarSession payload & persist in Store
+    const sessionDate = repeatType === 'none' && specificDate ? specificDate : effectiveDate;
     const sessionPayload = {
       classId,
       className: className.trim(),
       subject: subject.trim(),
       date: sessionDate,
-      startTime,
-      endTime,
+      startTime: finalStart,
+      endTime: finalEnd,
       room: room.trim() || undefined,
       color,
       notes: notes.trim() || undefined,
@@ -339,37 +452,83 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
     };
 
     let resultSession: CalendarSession;
-    if (classId) {
-      // Find the generated session corresponding to this item on this date
-      const targetSession = store.getSessions().find(
-        (s) => s.scheduleItemId === savedScheduleItemId && s.date === sessionDate
-      ) || store.getSessions().find((s) => s.scheduleItemId === savedScheduleItemId);
-
-      resultSession = targetSession || {
-        ...sessionPayload,
-        id: `sess-${Date.now()}`,
-        createdAt: new Date().toISOString()
-      };
-      success(
-        isEditing ? 'Cập nhật ca học thành công' : 'Đã thêm ca học mới',
-        `Đã đồng bộ ca ${resultSession.className} vào Lịch dạy và Thời khóa biểu.`
-      );
+    if (sessionToEdit) {
+      const updated = store.updateSession(sessionToEdit.id, sessionPayload);
+      resultSession = updated || { ...sessionPayload, id: sessionToEdit.id, createdAt: new Date().toISOString() };
+      success('Cập nhật ca học thành công', `Đã cập nhật ca ${resultSession.className} (${finalStart} - ${finalEnd})`);
     } else {
-      // Standalone session not linked to a class
-      if (sessionToEdit) {
-        const updated = store.updateSession(sessionToEdit.id, sessionPayload);
-        resultSession = updated || { ...sessionPayload, id: sessionToEdit.id, createdAt: new Date().toISOString() };
-        success('Cập nhật ca học thành công', `Đã cập nhật ca ${resultSession.className}`);
-      } else {
-        resultSession = store.addSession(sessionPayload);
-        success('Đã thêm ca học mới', `Ca học ${resultSession.className} đã được tạo.`);
+      // Add new persistent session into store
+      resultSession = store.addSession(sessionPayload);
+
+      // If weekly or recurring, also generate upcoming recurring dates for calendar display (next 6 weeks)
+      if (repeatType === 'weekly' || repeatType === 'custom') {
+        const baseDate = new Date(sessionDate);
+        if (!isNaN(baseDate.getTime())) {
+          const daysToRepeat = repeatType === 'weekly' ? [selectedDay] : repeatDays;
+          for (let week = 1; week <= 6; week++) {
+            for (const targetDay of daysToRepeat) {
+              const recurringDate = new Date(baseDate);
+              recurringDate.setDate(baseDate.getDate() + (week * 7) + (targetDay - selectedDay));
+              const y = recurringDate.getFullYear();
+              const m = String(recurringDate.getMonth() + 1).padStart(2, '0');
+              const d = String(recurringDate.getDate()).padStart(2, '0');
+              const recDateStr = `${y}-${m}-${d}`;
+
+              store.addSession({
+                ...sessionPayload,
+                date: recDateStr
+              });
+            }
+          }
+        }
       }
+
+      success(
+        'Đã tạo ca học thành công!',
+        `Ca học ${resultSession.className} (${finalStart} - ${finalEnd}) đã được đồng bộ vào Lịch dạy & TKB.`
+      );
     }
 
     if (onSaved) onSaved(resultSession);
     if (onScheduleSaved && updatedSchedule) onScheduleSaved(updatedSchedule);
 
     onClose();
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    let finalStart = normalizeTimeString(startTime);
+    let finalEnd = normalizeTimeString(endTime);
+
+    let startMins = timeToMinutes(finalStart);
+    let endMins = timeToMinutes(finalEnd);
+
+    // Smart fix: If end time is before start time, check if user meant PM (e.g. 11:35 AM to 01:00 PM -> 13:00)
+    if (endMins <= startMins) {
+      if (endMins < 12 * 60 && (endMins + 12 * 60) > startMins) {
+        endMins += 12 * 60;
+        finalEnd = minutesToTime(endMins);
+      } else {
+        // Auto-correct to +90 mins so user is never blocked
+        endMins = startMins + 90;
+        finalEnd = minutesToTime(endMins);
+        info('Đã tự động căn chỉnh giờ kết thúc', `Giờ kết thúc đã được đặt thành ${finalEnd} (+90 phút).`);
+      }
+    }
+
+    if (!className.trim()) {
+      warning('Thiếu thông tin', 'Vui lòng nhập tên lớp hoặc ca học.');
+      return;
+    }
+
+    // If there is a schedule conflict, show popup warning modal for confirmation
+    if (conflictingSessions.length > 0) {
+      setShowConflictPopup(true);
+      return;
+    }
+
+    executeSaveSession();
   };
 
   const handleConfirmDelete = () => {
@@ -412,9 +571,9 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
       <div
-        className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
+        className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-lg overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -425,10 +584,10 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-slate-800 text-base">
-                {isEditing ? 'Chỉnh sửa ca học' : 'Thêm ca học mới'}
+                {isEditing ? 'Chỉnh sửa ca học' : 'Tạo ca học mới'}
               </h3>
               <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                <span>Đồng bộ giữa Thời khóa biểu & Lịch dạy</span>
+                <span>Đồng bộ tức thì giữa Thời khóa biểu & Lịch dạy</span>
               </p>
             </div>
           </div>
@@ -452,8 +611,9 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
             </div>
 
             {lockClass ? (
-              <div className="px-3.5 py-2.5 bg-slate-100/90 border border-slate-200 rounded-xl font-semibold text-slate-800">
+              <div className="px-3.5 py-2.5 bg-slate-100/90 border border-slate-200 rounded-xl font-semibold text-slate-800 flex items-center justify-between">
                 <span>{classes.find((c) => c.id === selectedClassId)?.name || 'Lớp học hiện tại'}</span>
+                <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded font-bold">Lớp đang chọn</span>
               </div>
             ) : (
               <select
@@ -463,10 +623,10 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
               >
                 {classes.map((cls) => (
                   <option key={cls.id} value={cls.id}>
-                    {cls.name} ({cls.grade} - {cls.subject})
+                    {cls.name} ({cls.grade} - {cls.subject || 'Toán học'})
                   </option>
                 ))}
-                <option value="custom">-- Lớp / Hoạt động khác (Tự nhập tên) --</option>
+                <option value="custom">-- Lớp / Ca học tự do (Tự nhập tiêu đề) --</option>
               </select>
             )}
           </div>
@@ -485,9 +645,10 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
                   const prefix = cls ? cls.name : 'Ca học';
                   setClassName(`${prefix} - ${dayObj?.label || 'Buổi học'} (${startTime} - ${endTime})`);
                 }}
-                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer"
+                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer flex items-center gap-1"
               >
-                Gợi ý tên tự động
+                <Sparkles className="w-3 h-3" />
+                <span>Gợi ý tên nhanh</span>
               </button>
             </div>
             <input
@@ -501,81 +662,75 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
           </div>
 
           {/* Start Time & End Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Bắt đầu
-              </label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs"
-                required
-              />
+          <div className="p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-2xl space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Bắt đầu</span>
+                </label>
+                <input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => handleStartTimeChange(e.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
+                  required
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Kết thúc</span>
+                  </label>
+                  {durationText && (
+                    <span className="text-[10px] font-bold text-indigo-700 bg-indigo-100 px-1.5 py-0.5 rounded">
+                      {durationText}
+                    </span>
+                  )}
+                </div>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(normalizeTimeString(e.target.value))}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-semibold text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
+                  required
+                />
+              </div>
             </div>
 
+            {/* Quick Duration Buttons */}
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                  Kết thúc
-                </label>
-                {durationText && (
-                  <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                    {durationText}
-                  </span>
-                )}
+              <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">Thời lượng nhanh:</span>
+              <div className="flex flex-wrap gap-1.5">
+                {DURATION_PRESETS.map((p) => (
+                  <button
+                    key={p.minutes}
+                    type="button"
+                    onClick={() => applyDurationPreset(p.minutes)}
+                    className="px-2.5 py-1 text-xs font-medium rounded-lg bg-white hover:bg-indigo-50 hover:text-indigo-700 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
+                  >
+                    {p.label}
+                  </button>
+                ))}
               </div>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs"
-                required
-              />
             </div>
           </div>
 
-          {/* Recurrence Options */}
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Tùy chọn lặp lại
-            </label>
-
-            {/* Dropdown select */}
-            <select
-              value={repeatType}
-              onChange={(e) => {
-                const newType = e.target.value as ScheduleRepeatType;
-                setRepeatType(newType);
-                if (newType === 'weekly' && repeatDays.length === 0) {
-                  setRepeatDays([selectedDay]);
-                }
-                if (newType === 'custom' && repeatDays.length === 0) {
-                  setRepeatDays([selectedDay]);
-                }
-              }}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs cursor-pointer"
-            >
-              <option value="none">Không lặp lại (Chỉ diễn ra 1 lần)</option>
-              <option value="weekly">
-                Hàng tuần vào {DAYS_OF_WEEK.find((d) => d.value === selectedDay)?.label || 'ngày này'}
-              </option>
-              <option value="daily">Hàng ngày</option>
-              <option value="weekdays">Mỗi ngày trong tuần (Thứ Hai đến Thứ Sáu)</option>
-              <option value="custom">Tùy chỉnh...</option>
-            </select>
-
-            {/* If 'none': pick specific date */}
-            {repeatType === 'none' && (
-              <div className="pt-2 space-y-1 animate-in fade-in duration-150">
-                <label className="block text-xs font-semibold text-slate-700">
-                  Ngày diễn ra ca học
+          {/* Date & Recurrence Options */}
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Date selection */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  {repeatType === 'none' ? 'Ngày diễn ra' : 'Ngày bắt đầu áp dụng'}
                 </label>
                 <input
                   type="date"
-                  value={specificDate}
+                  value={date || specificDate || '2026-09-17'}
                   onChange={(e) => {
+                    setDate(e.target.value);
                     setSpecificDate(e.target.value);
                     const d = new Date(e.target.value);
                     if (!isNaN(d.getTime())) {
@@ -585,16 +740,86 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs"
                   required
                 />
-                <p className="text-[11px] text-slate-500">
-                  Ca học này chỉ diễn ra duy nhất vào ngày được chọn, không tự động lặp lại các tuần sau.
-                </p>
+              </div>
+
+              {/* Recurrence Dropdown */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Tùy chọn lặp lại
+                </label>
+                <select
+                  value={repeatType}
+                  onChange={(e) => {
+                    const newType = e.target.value as ScheduleRepeatType;
+                    setRepeatType(newType);
+                    if (newType === 'weekly' && repeatDays.length === 0) {
+                      setRepeatDays([selectedDay]);
+                    }
+                    if (newType === 'custom' && repeatDays.length === 0) {
+                      setRepeatDays([selectedDay]);
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs cursor-pointer"
+                >
+                  <option value="weekly">
+                    Hàng tuần ({DAYS_OF_WEEK.find((d) => d.value === selectedDay)?.label || 'ngày này'})
+                  </option>
+                  <option value="none">Chỉ 1 buổi duy nhất (Không lặp)</option>
+                  <option value="daily">Hàng ngày</option>
+                  <option value="weekdays">Từ Thứ 2 đến Thứ 6</option>
+                  <option value="custom">Tùy chỉnh...</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Quick Day of Week Selector for Weekly */}
+            {(repeatType === 'weekly' || repeatType === 'custom') && (
+              <div className="pt-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  {repeatType === 'weekly' ? 'Chọn thứ trong tuần:' : 'Lặp lại vào các ngày:'}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {DAYS_OF_WEEK.map((d) => {
+                    const isSelected = repeatType === 'weekly' ? selectedDay === d.value : repeatDays.includes(d.value);
+                    return (
+                      <button
+                        key={d.value}
+                        type="button"
+                        onClick={() => {
+                          if (repeatType === 'weekly') {
+                            handleDaySelect(d.value);
+                          } else {
+                            let newDays: DayOfWeek[];
+                            if (repeatDays.includes(d.value)) {
+                              newDays = repeatDays.filter((val) => val !== d.value);
+                              if (newDays.length === 0) newDays = [d.value];
+                            } else {
+                              newDays = [...repeatDays, d.value];
+                            }
+                            setRepeatDays(newDays);
+                            if (!newDays.includes(selectedDay)) {
+                              setSelectedDay(newDays[0]);
+                            }
+                          }
+                        }}
+                        className={`w-9 h-9 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-xs scale-105'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                        }`}
+                        title={d.label}
+                      >
+                        {d.short}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
-            {/* If 'custom': customize interval, days, and ends */}
+            {/* If 'custom': customize interval and ends */}
             {repeatType === 'custom' && (
-              <div className="pt-2 p-3 bg-slate-50/70 rounded-xl border border-slate-200/80 space-y-3 animate-in fade-in duration-150">
-                {/* Repeat interval */}
+              <div className="p-3 bg-slate-50/70 rounded-xl border border-slate-200/80 space-y-3 animate-in fade-in duration-150">
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
                   <span>Lặp lại mỗi:</span>
                   <input
@@ -608,46 +833,6 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
                   <span className="font-normal text-slate-500">tuần</span>
                 </div>
 
-                {/* Day toggles (T2, T3, T4...) */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    Lặp lại vào các ngày:
-                  </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {DAYS_OF_WEEK.map((d) => {
-                      const isSelected = repeatDays.includes(d.value);
-                      return (
-                        <button
-                          key={d.value}
-                          type="button"
-                          onClick={() => {
-                            let newDays: DayOfWeek[];
-                            if (isSelected) {
-                              newDays = repeatDays.filter((val) => val !== d.value);
-                              if (newDays.length === 0) newDays = [d.value];
-                            } else {
-                              newDays = [...repeatDays, d.value];
-                            }
-                            setRepeatDays(newDays);
-                            if (!newDays.includes(selectedDay)) {
-                              setSelectedDay(newDays[0]);
-                            }
-                          }}
-                          className={`w-8 h-8 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
-                            isSelected
-                              ? 'bg-indigo-600 text-white shadow-xs scale-105'
-                              : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                          }`}
-                          title={d.label}
-                        >
-                          {d.short}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Ends condition */}
                 <div className="space-y-1.5 pt-1">
                   <label className="block text-xs font-semibold text-slate-700">Kết thúc:</label>
                   <div className="space-y-2 text-xs">
@@ -687,60 +872,29 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
                         }`}
                       />
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                        <input
-                          type="radio"
-                          name="repeatEndType"
-                          value="after_count"
-                          checked={repeatEndType === 'after_count'}
-                          onChange={() => setRepeatEndType('after_count')}
-                          className="text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <span className="text-slate-700">Sau:</span>
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={repeatCount}
-                        disabled={repeatEndType !== 'after_count'}
-                        onChange={(e) => setRepeatCount(Math.max(1, parseInt(e.target.value) || 1))}
-                        className={`w-16 px-2 py-1 text-xs border rounded-lg text-center ${
-                          repeatEndType === 'after_count'
-                            ? 'bg-white border-slate-300 text-slate-800'
-                            : 'bg-slate-100 border-slate-200 text-slate-400'
-                        }`}
-                      />
-                      <span className="text-slate-600">buổi học</span>
-                    </div>
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-
           {/* Color Tag */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Màu hiển thị trên lịch dạy
+              Màu hiển thị
             </label>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 pt-0.5">
               {COLOR_OPTIONS.map((c) => (
                 <button
                   type="button"
                   key={c.id}
                   onClick={() => setColor(c.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer transition-all ${
-                    color === c.id
-                      ? `${c.bg} ${c.border} text-white shadow-xs scale-102`
-                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                  className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-all cursor-pointer ${
+                    color === c.id ? `${c.bg} border-slate-800 scale-110 shadow-xs ring-2 ring-indigo-400` : `${c.bg} border-transparent opacity-60 hover:opacity-100`
                   }`}
+                  title={c.label}
                 >
-                  <span className={`w-2.5 h-2.5 rounded-full ${c.bg}`} />
-                  <span>{c.label}</span>
+                  {color === c.id && <Check className="w-4 h-4 text-white" />}
                 </button>
               ))}
             </div>
@@ -749,7 +903,7 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
           {/* Notes */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-              Ghi chú buổi học (nếu có)
+              Ghi chú ca học (nếu có)
             </label>
             <textarea
               value={notes}
@@ -758,14 +912,6 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
               placeholder="VD: Kiểm tra 15 phút đầu giờ, chữa đề thi số 3..."
               className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl font-normal text-slate-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-xs placeholder:text-slate-400 resize-none"
             />
-          </div>
-
-          {/* Synchronize indicator note */}
-          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-2 text-slate-600 text-xs">
-            <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
-            <span>
-              Thông tin ca học này sẽ tự động hiển thị đồng bộ trên cả <strong>Thời khóa biểu lớp</strong> và <strong>Lịch dạy toàn trường</strong> của giáo viên.
-            </span>
           </div>
 
           {/* Footer actions */}
@@ -805,15 +951,8 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
 
             <div className="flex items-center gap-2">
               <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-colors cursor-pointer"
-              >
-                Đóng
-              </button>
-              <button
                 type="submit"
-                className="px-5 py-2 bg-[#4338ca] hover:bg-[#3730a3] text-white font-bold rounded-xl text-xs shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                className="px-5 py-2.5 bg-[#4338ca] hover:bg-[#3730a3] text-white font-bold rounded-xl text-xs shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
               >
                 <Check className="w-4 h-4" />
                 <span>{isEditing ? 'Lưu thay đổi' : 'Tạo ca học'}</span>
@@ -822,6 +961,97 @@ export const CalendarSessionModal: React.FC<CalendarSessionModalProps> = ({
           </div>
         </form>
       </div>
+
+      {/* Schedule Conflict Warning Popup Modal */}
+      {showConflictPopup && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150 font-sans">
+          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-rose-200 overflow-hidden animate-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="px-6 py-5 bg-rose-50/90 border-b border-rose-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black text-slate-900 text-base leading-tight">
+                  Cảnh báo trùng lịch ca học
+                </h3>
+                <p className="text-xs text-rose-700 font-semibold mt-0.5">
+                  Phát hiện {conflictingSessions.length} ca học khác bị trùng thời gian
+                </p>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4 text-xs text-slate-600">
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Ca học bạn đang {isEditing ? 'cập nhật' : 'tạo'}:
+                </span>
+                <p className="font-extrabold text-slate-800 text-sm">
+                  {className || 'Ca học mới'}
+                </p>
+                <div className="flex items-center gap-2 text-slate-600 font-semibold text-xs pt-0.5">
+                  <span className="px-2 py-0.5 bg-white rounded-md border border-slate-200 text-indigo-700 font-bold">
+                    {startTime} - {endTime}
+                  </span>
+                  <span>• Ngày {date || specificDate}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-xs font-bold text-slate-800 block">
+                  Bị trùng khung giờ với các ca sau:
+                </span>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                  {conflictingSessions.map((cs) => (
+                    <div
+                      key={cs.id}
+                      className="p-3 bg-rose-50/70 rounded-xl border border-rose-200 flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="font-bold text-rose-950 truncate">
+                          {cs.className}
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">
+                          {cs.room ? `Phòng: ${cs.room}` : 'Chưa xếp phòng'}
+                        </div>
+                      </div>
+                      <div className="px-2.5 py-1 bg-rose-100 text-rose-800 font-bold text-xs rounded-lg shrink-0 border border-rose-200">
+                        {cs.startTime} - {cs.endTime}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-500 leading-relaxed bg-amber-50 p-2.5 rounded-xl border border-amber-200/70 text-amber-900">
+                💡 Thầy/cô có thể <strong>quay lại để đổi sang giờ khác</strong> hoặc <strong>vẫn tiếp tục tạo</strong> (trên thời gian biểu hệ thống sẽ xếp song song để tránh che khuất).
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowConflictPopup(false)}
+                className="px-4 py-2.5 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 transition-colors cursor-pointer"
+              >
+                Quay lại chỉnh sửa
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConflictPopup(false);
+                  executeSaveSession();
+                }}
+                className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+              >
+                Vẫn tiếp tục {isEditing ? 'lưu' : 'tạo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

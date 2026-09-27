@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Users,
   Plus,
@@ -36,10 +36,12 @@ import {
   Check,
   BarChart3,
   CheckSquare,
-  Square
+  Square,
+  Clock,
+  MapPin
 } from 'lucide-react';
 import { store } from '../../services/store';
-import { ClassRoom, Student, Exam, Submission, StudentDiligenceSummary } from '../../types';
+import { ClassRoom, Student, Exam, Submission, StudentDiligenceSummary, CalendarSession } from '../../types';
 import { QRModal } from '../../components/common/QRModal';
 import { ConfirmModal } from '../../components/common/ConfirmModal';
 import { ClassFormModal } from '../../components/classes/ClassFormModal';
@@ -55,6 +57,7 @@ import { AzotaCreateExamModal } from './components/AzotaCreateExamModal';
 import { ExamInfoModal } from './components/ExamInfoModal';
 import { StudentApprovalModal } from './components/StudentApprovalModal';
 import { StudentExcelImportModal } from './components/StudentExcelImportModal';
+import { CreateExamChoiceModal, ExamCreationMethod } from './components/CreateExamChoiceModal';
 
 export const ClassDetailView: React.FC = () => {
   const { classId } = useParams<{ classId: string }>();
@@ -91,7 +94,8 @@ export const ClassDetailView: React.FC = () => {
   const [homeworkInitialMode, setHomeworkInitialMode] = useState<'upload' | 'manual' | 'bank'>('upload');
   const [showClassAssignExamModal, setShowClassAssignExamModal] = useState(false);
   const [showAzotaCreateExamModal, setShowAzotaCreateExamModal] = useState(false);
-  const [examInitialTab, setExamInitialTab] = useState<'file' | 'compose' | 'quick_sheet' | 'bank'>('file');
+  const [showCreateChoiceModal, setShowCreateChoiceModal] = useState(false);
+  const [examInitialTab, setExamInitialTab] = useState<'file' | 'compose' | 'quick_sheet' | 'bank' | 'random' | 'ai'>('file');
 
   // Student Add/Edit Modal
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -122,6 +126,48 @@ export const ClassDetailView: React.FC = () => {
   const [gradebookRankFilter, setGradebookRankFilter] = useState<string>('all');
   const [gradebookSort, setGradebookSort] = useState<'avg_desc' | 'avg_asc' | 'diligence_desc' | 'bonus_desc' | 'name_asc'>('avg_desc');
 
+  const [searchParams] = useSearchParams();
+
+  // Detect ongoing session for this class
+  const ongoingSession = store.getSessions().find((s) => {
+    if (s.classId !== classId) return false;
+    if (s.status === 'ongoing' || (s as any).status === 'ongoing') return true;
+    const nowTime = new Date();
+    const curYear = nowTime.getFullYear();
+    const curMonth = String(nowTime.getMonth() + 1).padStart(2, '0');
+    const curDate = String(nowTime.getDate()).padStart(2, '0');
+    const actualToday = `${curYear}-${curMonth}-${curDate}`;
+    if (s.date === actualToday && s.startTime && s.endTime) {
+      const [startH, startM] = s.startTime.split(':').map(Number);
+      const [endH, endM] = s.endTime.split(':').map(Number);
+      const startMinutes = (startH || 0) * 60 + (startM || 0);
+      const endMinutes = (endH || 0) * 60 + (endM || 0);
+      const curMinutes = nowTime.getHours() * 60 + nowTime.getMinutes();
+      return curMinutes >= startMinutes && curMinutes <= endMinutes;
+    }
+    return false;
+  }) || (classId === 'class-9a1' ? store.getSessions().find((s) => s.id === 'sess-ongoing-live') : undefined);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'schedule' || tabParam === 'assigned_exams' || tabParam === 'students' || tabParam === 'gradebook') {
+      setActiveTab(tabParam as any);
+    }
+    if (searchParams.get('attendance') === 'true') {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      setAttendanceTargetDate(`${y}-${m}-${d}`);
+      setAttendanceTargetSession(ongoingSession ? `${ongoingSession.startTime} - ${ongoingSession.endTime}` : 'Ca học đang diễn ra');
+      setShowAttendanceModal(true);
+    }
+    if (searchParams.get('createHomework') === 'true') {
+      setHomeworkInitialMode('upload');
+      setShowCreateHomeworkModal(true);
+    }
+  }, [searchParams, ongoingSession]);
+
   useEffect(() => {
     const refresh = () => {
       if (!classId) return;
@@ -136,6 +182,20 @@ export const ClassDetailView: React.FC = () => {
     const unsub = store.subscribe(refresh);
     return unsub;
   }, [classId]);
+
+  const filteredStudents = useMemo(() => {
+    const matched = students.filter((s) =>
+      s.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (s.phone && s.phone.includes(searchTerm)) ||
+      (s.parentName && s.parentName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (s.parentPhone && s.parentPhone.includes(searchTerm))
+    );
+    const uniqueMap = new Map<string, Student>();
+    matched.forEach((s) => uniqueMap.set(s.id, s));
+    return Array.from(uniqueMap.values());
+  }, [students, searchTerm]);
 
   const handleDeleteClassConfirm = () => {
     if (cls) {
@@ -284,15 +344,6 @@ export const ClassDetailView: React.FC = () => {
 
     success('Xuất file thành công', `Đã tải xuống danh sách ${students.length} học sinh lớp ${cls.name}.`);
   };
-
-  const filteredStudents = students.filter((s) =>
-    s.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (s.email && s.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (s.phone && s.phone.includes(searchTerm)) ||
-    (s.parentName && s.parentName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (s.parentPhone && s.parentPhone.includes(searchTerm))
-  );
 
   const pendingStudents = cls ? store.getPendingStudentsByClassId(cls.id) : [];
 
@@ -453,7 +504,8 @@ export const ClassDetailView: React.FC = () => {
             setShowAttendanceModal(true);
           }}
           onAssignExam={(_session) => {
-            setShowClassAssignExamModal(true);
+            setHomeworkInitialMode('upload');
+            setShowCreateHomeworkModal(true);
           }}
         />
       )}
@@ -613,11 +665,13 @@ export const ClassDetailView: React.FC = () => {
           <div className="flex items-center justify-between">
             <p className="text-xs text-[#9A8A85]">Các bài tập, đề thi đã giao cho lớp {cls.name}</p>
             
-            {/* Giao bài mới button */}
+            {/* Giao bài mới button - opens original ClassAssignExamModal */}
             <button
               type="button"
               id="btn-assign-new-work"
-              onClick={() => setShowClassAssignExamModal(true)}
+              onClick={() => {
+                setShowClassAssignExamModal(true);
+              }}
               className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer active:scale-95"
             >
               <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -625,67 +679,91 @@ export const ClassDetailView: React.FC = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {exams.map((exam) => {
-              const classSubs = submissions.filter((s) => s.examId === exam.id && s.studentClassId === cls.id);
-              const completionRate = students.length > 0
-                ? Math.round((classSubs.length / students.length) * 100)
-                : 0;
+          {exams.length === 0 ? (
+            <div className="p-12 text-center bg-[#FFFDF9] rounded-2xl border border-dashed border-[#EFE3DD] space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-2xs">
+                <FileText className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-bold text-[#5C453C] text-sm">Chưa có bài tập nào được giao cho lớp {cls.name}</h4>
+                <p className="text-xs text-[#9A8A85] max-w-md mx-auto">
+                  Bấm nút bên dưới để chọn đề thi từ kho có sẵn hoặc tạo đề thi mới để giao cho học sinh trong lớp.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowClassAssignExamModal(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer active:scale-95"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Giao bài mới ngay</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {exams.map((exam) => {
+                const classSubs = submissions.filter((s) => s.examId === exam.id && s.studentClassId === cls.id);
+                const completionRate = students.length > 0
+                  ? Math.round((classSubs.length / students.length) * 100)
+                  : 0;
 
-              return (
-                <div key={exam.id} className="p-5 bg-[#FFFDF9] rounded-2xl border border-[#EFE3DD] shadow-xs space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h4 className="font-extrabold text-[#5C453C] text-sm leading-snug">{exam.title}</h4>
-                      <p className="text-xs text-[#9A8A85] mt-0.5">{exam.durationMinutes} phút • {exam.questions?.length || 0} câu</p>
+                return (
+                  <div key={exam.id} className="p-5 bg-[#FFFDF9] rounded-2xl border border-[#EFE3DD] shadow-xs space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h4 className="font-extrabold text-[#5C453C] text-sm leading-snug">{exam.title}</h4>
+                        <p className="text-xs text-[#9A8A85] mt-0.5">{exam.durationMinutes} phút • {exam.questions?.length || 0} câu</p>
+                      </div>
+                      <ExamStatusBadge status={exam.status} />
                     </div>
-                    <ExamStatusBadge status={exam.status} />
-                  </div>
 
-                  {/* Progress bar */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs text-[#5C453C]">
-                      <span className="font-medium">Tỷ lệ hoàn thành</span>
-                      <span className="font-bold font-mono">{classSubs.length}/{students.length} ({completionRate}%)</span>
+                    {/* Progress bar */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs text-[#5C453C]">
+                        <span className="font-medium">Tỷ lệ hoàn thành</span>
+                        <span className="font-bold font-mono">{classSubs.length}/{students.length} ({completionRate}%)</span>
+                      </div>
+                      <div className="w-full h-2 bg-[#F5F0EA] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#B68176] rounded-full transition-all"
+                          style={{ width: `${Math.min(100, completionRate)}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="w-full h-2 bg-[#F5F0EA] rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-[#B68176] rounded-full transition-all"
-                        style={{ width: `${Math.min(100, completionRate)}%` }}
-                      />
-                    </div>
-                  </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#EFE3DD] text-xs">
-                    <button
-                      onClick={() => setSelectedExamForAssign(exam)}
-                      className="text-[#5C453C] hover:text-[#B68176] inline-flex items-center gap-1 font-semibold transition-colors cursor-pointer"
-                    >
-                      <Send className="w-3.5 h-3.5 text-[#B68176]" />
-                      <span>Cài đặt & Giao lại</span>
-                    </button>
-                    <div className="flex items-center gap-3">
-                      <Link
-                        to={`/exam/${exam.id}`}
-                        target="_blank"
-                        className="text-[#9A8A85] hover:text-[#5C453C] inline-flex items-center gap-1 font-semibold transition-colors"
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#EFE3DD] text-xs">
+                      <button
+                        onClick={() => setSelectedExamForAssign(exam)}
+                        className="text-[#5C453C] hover:text-[#B68176] inline-flex items-center gap-1 font-semibold transition-colors cursor-pointer"
                       >
-                        <ExternalLink className="w-3.5 h-3.5 text-[#B68176]" />
-                        <span>Xem đề</span>
-                      </Link>
-                      <Link
-                        to={`/teacher/reports?examId=${exam.id}`}
-                        className="text-[#B68176] hover:text-[#A37066] font-bold inline-flex items-center gap-1 transition-colors"
-                      >
-                        <TrendingUp className="w-3.5 h-3.5" />
-                        <span>Báo cáo</span>
-                      </Link>
+                        <Send className="w-3.5 h-3.5 text-[#B68176]" />
+                        <span>Cài đặt & Giao lại</span>
+                      </button>
+                      <div className="flex items-center gap-3">
+                        <Link
+                          to={`/exam/${exam.id}`}
+                          target="_blank"
+                          className="text-[#9A8A85] hover:text-[#5C453C] inline-flex items-center gap-1 font-semibold transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 text-[#B68176]" />
+                          <span>Xem đề</span>
+                        </Link>
+                        <Link
+                          to={`/teacher/reports?examId=${exam.id}`}
+                          className="text-[#B68176] hover:text-[#A37066] font-bold inline-flex items-center gap-1 transition-colors"
+                        >
+                          <TrendingUp className="w-3.5 h-3.5" />
+                          <span>Báo cáo</span>
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -1331,8 +1409,39 @@ export const ClassDetailView: React.FC = () => {
             setSelectedExamForAssign(exam);
           }}
           onOpenCreateNewExam={() => {
-            setExamInitialTab('compose');
-            setShowAzotaCreateExamModal(true);
+            setShowClassAssignExamModal(false);
+            setShowCreateChoiceModal(true);
+          }}
+          onOpenCreateHomework={() => {
+            setShowClassAssignExamModal(false);
+            setShowCreateChoiceModal(true);
+          }}
+        />
+      )}
+
+      {/* Create Exam Choice Modal (5 Methods) */}
+      {showCreateChoiceModal && (
+        <CreateExamChoiceModal
+          isOpen={showCreateChoiceModal}
+          onClose={() => setShowCreateChoiceModal(false)}
+          onSelectMethod={(method) => {
+            setShowCreateChoiceModal(false);
+            if (method === 'ai') {
+              setExamInitialTab('ai');
+              setShowAzotaCreateExamModal(true);
+            } else if (method === 'from_scratch') {
+              setExamInitialTab('bank');
+              setShowAzotaCreateExamModal(true);
+            } else if (method === 'quick') {
+              setExamInitialTab('quick_sheet');
+              setShowAzotaCreateExamModal(true);
+            } else if (method === 'random') {
+              setExamInitialTab('random');
+              setShowAzotaCreateExamModal(true);
+            } else if (method === 'word_pdf') {
+              setExamInitialTab('file');
+              setShowAzotaCreateExamModal(true);
+            }
           }}
         />
       )}

@@ -25,7 +25,8 @@ import {
   Trash2,
   QrCode,
   School,
-  Calendar
+  Calendar,
+  BookOpen
 } from 'lucide-react';
 import { store } from '../../services/store';
 import { ClassRoom } from '../../types';
@@ -276,37 +277,6 @@ export const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
                 </button>
               </div>
             </>
-          )}
-        </div>
-
-        {/* Action button inside sidebar */}
-        <div className={`pt-3.5 pb-2 transition-all ${sidebarCollapsed ? 'px-2' : 'px-4'}`}>
-          {sidebarCollapsed ? (
-            <button
-              id="btn-sidebar-import-wizard-collapsed"
-              onClick={() => {
-                setMobileOpen(false);
-                navigate('/teacher/import-wizard');
-              }}
-              title="Nhập đề AI (Word/PDF)"
-              className="w-11 h-11 mx-auto flex items-center justify-center text-white rounded-xl shadow-md transition-all cursor-pointer hover:scale-105 active:scale-95"
-              style={{ backgroundColor: themeConfig.colors.primary }}
-            >
-              <Sparkles className="w-5 h-5 text-amber-200" />
-            </button>
-          ) : (
-            <button
-              id="btn-sidebar-import-wizard"
-              onClick={() => {
-                setMobileOpen(false);
-                navigate('/teacher/import-wizard');
-              }}
-              className="w-full flex items-center justify-center gap-2 text-white py-2.5 px-3 rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer active:scale-98"
-              style={{ backgroundColor: themeConfig.colors.primary }}
-            >
-              <Sparkles className="w-4 h-4 text-amber-200" />
-              <span>Nhập đề AI (Word/PDF)</span>
-            </button>
           )}
         </div>
 

@@ -247,11 +247,15 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
 
   // Filter students based on active filter tab
   const filteredStudents = useMemo(() => {
-    if (filterStatus === 'all') return students;
-    return students.filter((st) => {
-      const status = attendanceMap[st.id]?.status || 'present';
-      return status === filterStatus;
-    });
+    const list = filterStatus === 'all'
+      ? students
+      : students.filter((st) => {
+          const status = attendanceMap[st.id]?.status || 'present';
+          return status === filterStatus;
+        });
+    const map = new Map<string, Student>();
+    list.forEach((s) => map.set(s.id, s));
+    return Array.from(map.values());
   }, [students, attendanceMap, filterStatus]);
 
   // Active matched schedule session

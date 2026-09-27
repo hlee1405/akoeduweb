@@ -274,14 +274,6 @@ export const QuestionBankView: React.FC = () => {
 
         <div className="flex items-center gap-2.5">
           <button
-            id="btn-goto-ai-import"
-            onClick={() => navigate('/teacher/import-wizard')}
-            className="flex items-center gap-2 px-4 py-2.5 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs rounded-xl shadow-xs transition-all cursor-pointer"
-          >
-            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
-            <span>Nhập đề AI (Word/PDF)</span>
-          </button>
-          <button
             id="btn-create-question-manual"
             onClick={() => openFormModal()}
             className="flex items-center gap-1.5 px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-xl transition-colors cursor-pointer"

@@ -79,6 +79,7 @@ export interface ExamSettings {
   // 5. Submission & Layout Mode
   allowFileUploadEssay?: boolean; // Cho phép chụp ảnh bài làm tự luận tải lên (Azota signature feature)
   assignmentType?: 'exam' | 'homework'; // Loại: Đề thi / Bài tập về nhà
+  attachedFiles?: Array<{ name: string; size: string; type: string }>;
 }
 
 export type ExamStatus = 'draft' | 'scheduled' | 'published' | 'closed';
@@ -105,6 +106,7 @@ export interface Exam {
   openTime?: string;
   closeTime?: string;
   assignedClassIds: string[];
+  assignedStudentIds?: string[];
   settings: ExamSettings;
   questions: ExamQuestionItem[];
   isPublic?: boolean;
@@ -199,6 +201,7 @@ export interface CalendarSession {
   notes?: string;
   scheduleItemId?: string;
   repeatType?: ScheduleRepeatType;
+  status?: 'upcoming' | 'ongoing' | 'completed' | 'cancelled';
   createdAt?: string;
 }
 

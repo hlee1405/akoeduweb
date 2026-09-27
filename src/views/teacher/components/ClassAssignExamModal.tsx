@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   X,
   FileText,
+  BookOpen,
   Plus,
   Zap,
   Search,
@@ -10,7 +11,9 @@ import {
   CheckCircle2,
   Sliders,
   Layers,
-  Sparkles
+  Sparkles,
+  Calendar,
+  FileCheck
 } from 'lucide-react';
 import { Exam, ClassRoom } from '../../../types';
 import { store } from '../../../services/store';
@@ -21,6 +24,7 @@ interface ClassAssignExamModalProps {
   cls: ClassRoom;
   onSelectExamToAssign: (exam: Exam) => void;
   onOpenCreateNewExam: () => void;
+  onOpenCreateHomework?: () => void;
 }
 
 export const ClassAssignExamModal: React.FC<ClassAssignExamModalProps> = ({
@@ -28,15 +32,34 @@ export const ClassAssignExamModal: React.FC<ClassAssignExamModalProps> = ({
   onClose,
   cls,
   onSelectExamToAssign,
-  onOpenCreateNewExam
+  onOpenCreateNewExam,
+  onOpenCreateHomework
 }) => {
+  const [activeTab, setActiveTab] = useState<'exam' | 'homework'>('exam');
   const [searchTerm, setSearchTerm] = useState('');
   const allExams = store.getExams();
 
   if (!isOpen) return null;
 
-  // Filter exams that can be assigned
-  const filteredExams = allExams.filter((ex) => {
+  // Filter exams based on activeTab (Exam vs Homework)
+  const isHomeworkExam = (ex: Exam) => {
+    return (
+      ex.settings?.assignmentType === 'homework' ||
+      ex.settings?.isUnlimitedTime ||
+      ex.durationMinutes === 0 ||
+      ex.title.toLowerCase().includes('bài tập') ||
+      ex.title.toLowerCase().includes('về nhà')
+    );
+  };
+
+  const currentTabExams = allExams.filter((ex) => {
+    if (activeTab === 'homework') {
+      return isHomeworkExam(ex);
+    }
+    return !isHomeworkExam(ex) || allExams.length <= 4;
+  });
+
+  const filteredItems = currentTabExams.filter((ex) => {
     return (
       ex.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ex.subject.toLowerCase().includes(searchTerm.toLowerCase())
@@ -50,16 +73,16 @@ export const ClassAssignExamModal: React.FC<ClassAssignExamModalProps> = ({
         <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs">
-              <FileText className="w-5 h-5 text-indigo-100" />
+              {activeTab === 'exam' ? <FileText className="w-5 h-5 text-indigo-100" /> : <BookOpen className="w-5 h-5 text-indigo-100" />}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-base sm:text-lg font-bold text-slate-900">
-                  Giao Đề Thi Cho Lớp: {cls.name}
+                  Giao bài cho lớp: {cls.name}
                 </h3>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Chọn đề trắc nghiệm có sẵn từ kho hoặc tạo đề thi mới
+                Chọn hình thức giao: <span className="font-semibold text-indigo-600">Đề thi trắc nghiệm</span> hoặc <span className="font-semibold text-emerald-600">Bài tập trắc nghiệm</span>
               </p>
             </div>
           </div>
@@ -74,44 +97,100 @@ export const ClassAssignExamModal: React.FC<ClassAssignExamModalProps> = ({
           </button>
         </div>
 
+        {/* 2 Primary Choices: Segmented Switcher */}
+        <div className="px-6 pt-4 pb-1 shrink-0 bg-white">
+          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl border border-slate-200/80 gap-1">
+            {/* Choice 1: Đề thi */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('exam');
+                setSearchTerm('');
+              }}
+              className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'exam'
+                  ? 'bg-white text-indigo-700 shadow-xs border border-slate-200/80'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+            >
+              <FileText className="w-4 h-4 text-indigo-600" />
+              <span>1. Đề thi</span>
+            </button>
+
+            {/* Choice 2: Bài tập */}
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('homework');
+                setSearchTerm('');
+              }}
+              className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'homework'
+                  ? 'bg-white text-emerald-700 shadow-xs border border-slate-200/80'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+            >
+              <BookOpen className="w-4 h-4 text-emerald-600" />
+              <span>2. Bài tập</span>
+            </button>
+          </div>
+        </div>
+
         {/* Body */}
-        <div className="p-6 overflow-y-auto max-h-[75vh] space-y-5">
-          {/* Quick Action: Create New Exam */}
-          <div className="p-4 bg-linear-to-r from-indigo-500/10 via-blue-500/10 to-indigo-500/5 rounded-2xl border border-indigo-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="space-y-1">
+        <div className="p-6 pt-3 overflow-y-auto max-h-[72vh] space-y-4">
+          {/* Quick Action Box based on Tab */}
+          {activeTab === 'exam' ? (
+            <div className="p-4 bg-linear-to-r from-indigo-500/10 via-blue-500/10 to-indigo-500/5 rounded-2xl border border-indigo-200/80 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <span className="font-extrabold text-indigo-900 text-sm flex items-center gap-1.5">
                   <Zap className="w-4 h-4 text-amber-500" />
                   <span>Tạo Đề Thi Trắc Nghiệm Mới</span>
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700">
-                  Khuyên dùng
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenCreateNewExam();
+                }}
+                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer shrink-0 flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Tạo đề thi mới ngay</span>
+              </button>
+            </div>
+          ) : (
+            <div className="p-4 bg-linear-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 rounded-2xl border border-emerald-200/80 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-emerald-900 text-sm flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
+                  <span>Tạo Bài Tập Trắc Nghiệm Mới</span>
                 </span>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Tải file Word/PDF trắc nghiệm hoặc dùng phiếu đáp án OMR siêu tốc 30 giây để giao ngay cho lớp <strong>{cls.name}</strong>.
-              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenCreateNewExam();
+                }}
+                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer shrink-0 flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Tạo bài tập mới ngay</span>
+              </button>
             </div>
+          )}
 
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onOpenCreateNewExam();
-              }}
-              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer shrink-0 flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Tạo đề mới ngay</span>
-            </button>
-          </div>
-
-          {/* Section: Select from Existing Exams */}
+          {/* Section: Select from Existing repository */}
           <div className="space-y-3">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <Layers className="w-4 h-4 text-slate-500" />
-                <span>Hoặc chọn từ Kho Đề thi có sẵn ({filteredExams.length} đề thi)</span>
+                <span>
+                  Hoặc chọn từ Kho {activeTab === 'exam' ? 'Đề thi' : 'Bài tập'} có sẵn ({filteredItems.length} {activeTab === 'exam' ? 'đề' : 'bài'})
+                </span>
               </span>
 
               {/* Search */}
@@ -119,7 +198,7 @@ export const ClassAssignExamModal: React.FC<ClassAssignExamModalProps> = ({
                 <Search className="w-3.5 h-3.5 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Tìm theo tên đề, môn..."
+                  placeholder={`Tìm ${activeTab === 'exam' ? 'đề thi' : 'bài tập'} theo tên...`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="bg-transparent text-slate-800 text-xs outline-hidden w-full font-medium"
@@ -127,13 +206,15 @@ export const ClassAssignExamModal: React.FC<ClassAssignExamModalProps> = ({
               </div>
             </div>
 
-            {filteredExams.length === 0 ? (
+            {filteredItems.length === 0 ? (
               <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-500">
-                Không tìm thấy đề thi nào phù hợp với từ khóa "{searchTerm}".
+                {searchTerm
+                  ? `Không tìm thấy mục nào phù hợp với từ khóa "${searchTerm}".`
+                  : `Chưa có ${activeTab === 'exam' ? 'đề thi' : 'bài tập'} nào trong kho. Bấm nút phía trên để tạo mới.`}
               </div>
             ) : (
-              <div className="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
-                {filteredExams.map((exam) => {
+              <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                {filteredItems.map((exam) => {
                   const isAssignedToThisClass = (exam.assignedClassIds || []).includes(cls.id);
                   const questionsCount = exam.questions?.length || 0;
 
@@ -156,11 +237,11 @@ export const ClassAssignExamModal: React.FC<ClassAssignExamModalProps> = ({
                         </div>
 
                         <div className="flex items-center gap-3 text-[11px] text-slate-500 font-medium">
-                          <span>{questionsCount} câu trắc nghiệm</span>
-                          <span>•</span>
+                          {questionsCount > 0 && <span>{questionsCount} câu trắc nghiệm</span>}
+                          {questionsCount > 0 && <span>•</span>}
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3 text-slate-400" />
-                            <span>{exam.durationMinutes} phút</span>
+                            <span>{exam.durationMinutes > 0 ? `${exam.durationMinutes} phút` : 'Không giới hạn thời gian'}</span>
                           </span>
                         </div>
                       </div>
@@ -171,9 +252,13 @@ export const ClassAssignExamModal: React.FC<ClassAssignExamModalProps> = ({
                           onClose();
                           onSelectExamToAssign(exam);
                         }}
-                        className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer shrink-0 flex items-center justify-center gap-1.5"
+                        className={`px-3.5 py-2 font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer shrink-0 flex items-center justify-center gap-1.5 ${
+                          activeTab === 'homework'
+                            ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                            : 'bg-slate-900 hover:bg-slate-800 text-white'
+                        }`}
                       >
-                        <Sliders className="w-3.5 h-3.5 text-indigo-300" />
+                        <Sliders className="w-3.5 h-3.5 text-slate-300" />
                         <span>Cấu hình & Giao</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
@@ -186,7 +271,10 @@ export const ClassAssignExamModal: React.FC<ClassAssignExamModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-end text-xs text-slate-500">
+        <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
+          <span className="text-[11px]">
+            Đang chọn giao cho lớp <strong>{cls.name}</strong>
+          </span>
           <button
             type="button"
             onClick={onClose}

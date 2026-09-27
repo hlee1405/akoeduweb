@@ -77,7 +77,7 @@ export const ExamStatusBadge: React.FC<{ status: ExamStatus }> = ({ status }) =>
   const map: Record<ExamStatus, { label: string; variant: BadgeProps['variant'] }> = {
     draft: { label: 'BẢN NHÁP', variant: 'default' },
     scheduled: { label: 'LÊN LỊCH', variant: 'primary' },
-    published: { label: 'ĐANG MỞ', variant: 'success' },
+    published: { label: 'ĐANG GIAO', variant: 'success' },
     closed: { label: 'ĐÃ ĐÓNG', variant: 'default' }
   };
   const config = map[status] || { label: status, variant: 'default' };

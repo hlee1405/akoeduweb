@@ -21,19 +21,119 @@ type CalendarViewMode = 'month' | 'week' | 'day';
 // Hourly timeline from 06:00 to 21:00
 const HOURS = Array.from({ length: 16 }, (_, i) => i + 6); // 6 to 21
 
+interface PositionedSession {
+  session: CalendarSession;
+  topPx: number;
+  heightPx: number;
+  colIndex: number;
+  totalCols: number;
+}
+
+/**
+ * Calculates side-by-side positioning for sessions on the same day so they NEVER overlap visually.
+ */
+function layoutDaySessions(daySessions: CalendarSession[], hourHeight = 58, startHour = 6): PositionedSession[] {
+  if (daySessions.length === 0) return [];
+
+  const parsed = daySessions.map((s) => {
+    const [sh, sm] = (s.startTime || '07:00').split(':').map(Number);
+    const [eh, em] = (s.endTime || '08:30').split(':').map(Number);
+    const startM = (sh || 0) * 60 + (sm || 0);
+    let endM = (eh || 0) * 60 + (em || 0);
+    if (endM <= startM) endM = startM + 90;
+    return {
+      session: s,
+      startM,
+      endM,
+      durationM: endM - startM
+    };
+  });
+
+  parsed.sort((a, b) => a.startM - b.startM || b.durationM - a.durationM);
+
+  // Group into overlapping clusters
+  const clusters: (typeof parsed)[] = [];
+  let currentCluster: typeof parsed = [];
+  let clusterEnd = -1;
+
+  parsed.forEach((item) => {
+    if (currentCluster.length === 0) {
+      currentCluster.push(item);
+      clusterEnd = item.endM;
+    } else {
+      if (item.startM < clusterEnd) {
+        currentCluster.push(item);
+        clusterEnd = Math.max(clusterEnd, item.endM);
+      } else {
+        clusters.push(currentCluster);
+        currentCluster = [item];
+        clusterEnd = item.endM;
+      }
+    }
+  });
+  if (currentCluster.length > 0) {
+    clusters.push(currentCluster);
+  }
+
+  const result: PositionedSession[] = [];
+
+  // Assign column slots per cluster
+  clusters.forEach((cluster) => {
+    const columns: number[] = [];
+
+    cluster.forEach((item) => {
+      let placedCol = -1;
+      for (let i = 0; i < columns.length; i++) {
+        if (columns[i] <= item.startM) {
+          placedCol = i;
+          columns[i] = item.endM;
+          break;
+        }
+      }
+      if (placedCol === -1) {
+        placedCol = columns.length;
+        columns.push(item.endM);
+      }
+      (item as any).colIndex = placedCol;
+    });
+
+    const totalCols = Math.max(1, columns.length);
+
+    cluster.forEach((item) => {
+      const topPx = Math.max(0, ((item.startM - startHour * 60) / 60) * hourHeight);
+      const heightPx = Math.max(46, Math.round((item.durationM / 60) * hourHeight) - 4);
+      result.push({
+        session: item.session,
+        topPx,
+        heightPx,
+        colIndex: (item as any).colIndex || 0,
+        totalCols
+      });
+    });
+  });
+
+  return result;
+}
+
 export const TeacherCalendarView: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // Selected date anchor (defaults to query param date or 2026-09-17)
-  const initialDateStr = searchParams.get('date') || '2026-09-17';
+  const now = new Date();
+  const realTodayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const todayStr = realTodayStr;
+
+  // Selected date anchor (defaults to query param date or today)
+  const initialDateStr = searchParams.get('date');
 
   const [activeDate, setActiveDate] = useState<Date>(() => {
-    const parts = initialDateStr.split('-');
-    if (parts.length === 3) {
-      return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    if (initialDateStr) {
+      const parts = initialDateStr.split('-');
+      if (parts.length === 3) {
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      }
     }
-    return new Date(2026, 8, 17);
+    return new Date();
   });
 
   const [viewMode, setViewMode] = useState<CalendarViewMode>('week'); // Default week matching Image 2
@@ -46,8 +146,6 @@ export const TeacherCalendarView: React.FC = () => {
   const [modalDate, setModalDate] = useState<string>('');
   const [modalStartTime, setModalStartTime] = useState<string>('07:00');
   const [editingSession, setEditingSession] = useState<CalendarSession | null>(null);
-
-  const todayStr = '2026-09-17';
 
   useEffect(() => {
     const handleUpdate = () => {
@@ -118,7 +216,7 @@ export const TeacherCalendarView: React.FC = () => {
 
   // Navigation handlers
   const handleToday = () => {
-    setActiveDate(new Date(2026, 8, 17));
+    setActiveDate(new Date());
   };
 
   const handlePrev = () => {
@@ -341,74 +439,72 @@ export const TeacherCalendarView: React.FC = () => {
                 })}
               </div>
 
-              {/* Grid Body: Hours & Day Slots */}
-              <div className="divide-y divide-slate-100">
-                {HOURS.map((hour) => {
-                  const timeLabel = `${String(hour).padStart(2, '0')}:00`;
+              {/* Grid Body: Hours & Day Columns with Non-overlapping Session Layout */}
+              <div className="grid grid-cols-[80px_repeat(7,1fr)] relative">
+                {/* Left time label column */}
+                <div className="border-r border-slate-200 divide-y divide-slate-100 bg-slate-50/30 select-none">
+                  {HOURS.map((hour) => (
+                    <div
+                      key={hour}
+                      className="h-[58px] px-2 py-2 text-[11px] font-semibold text-slate-500 text-center flex items-center justify-center"
+                    >
+                      {String(hour).padStart(2, '0')}:00
+                    </div>
+                  ))}
+                </div>
+
+                {/* 7 Day Columns */}
+                {currentWeekDays.map((colDay) => {
+                  const daySessions = filteredSessions.filter((s) => s.date === colDay.dateStr);
+                  const positioned = layoutDaySessions(daySessions, 58, 6);
 
                   return (
                     <div
-                      key={hour}
-                      className="grid grid-cols-[80px_repeat(7,1fr)] min-h-[58px] group"
+                      key={colDay.dateStr}
+                      className={`relative border-r last:border-r-0 border-slate-100 ${
+                        colDay.isToday ? 'bg-sky-50/30' : 'bg-white'
+                      }`}
                     >
-                      {/* Left time label */}
-                      <div className="px-2 py-2 border-r border-slate-200 text-[11px] font-semibold text-slate-500 text-center select-none bg-slate-50/30">
-                        {timeLabel}
+                      {/* 16 Background hour slots (clickable) */}
+                      <div className="divide-y divide-slate-100">
+                        {HOURS.map((hour) => (
+                          <div
+                            key={hour}
+                            onClick={() => handleCellClick(colDay.dateStr, hour)}
+                            className="h-[58px] transition-colors cursor-pointer hover:bg-teal-50/40"
+                            title={`Nhấn để thêm ca học lúc ${String(hour).padStart(2, '0')}:00 ngày ${colDay.dateStr}`}
+                          />
+                        ))}
                       </div>
 
-                      {/* 7 Day slots for this hour */}
-                      {currentWeekDays.map((colDay) => {
-                        // Find sessions that start in this hour slot
-                        const matchingSessions = filteredSessions.filter((s) => {
-                          if (s.date !== colDay.dateStr) return false;
-                          const [sHour] = s.startTime.split(':').map((v) => parseInt(v, 10));
-                          return sHour === hour;
-                        });
+                      {/* Positioned session cards on this day (No overlapping/covering each other) */}
+                      {positioned.map(({ session: sess, topPx, heightPx, colIndex, totalCols }) => {
+                        const colorClass = getSessionColorClasses(sess.color);
+                        const colWidthPercent = 100 / totalCols;
+                        const leftPercent = colIndex * colWidthPercent;
 
                         return (
                           <div
-                            key={colDay.dateStr}
-                            onClick={() => handleCellClick(colDay.dateStr, hour)}
-                            className={`p-1 border-r last:border-r-0 border-slate-100 relative transition-all cursor-pointer hover:bg-teal-50/30 ${
-                              colDay.isToday ? 'bg-sky-50/40' : ''
-                            }`}
-                            title={`Nhấn để thêm ca học lúc ${timeLabel} ngày ${colDay.dateStr}`}
+                            key={sess.id}
+                            onClick={(e) => handleSessionClick(sess, e)}
+                            style={{
+                              top: `${topPx + 2}px`,
+                              height: `${heightPx}px`,
+                              left: `calc(${leftPercent}% + 2px)`,
+                              width: `calc(${colWidthPercent}% - 4px)`,
+                              zIndex: 10
+                            }}
+                            className={`absolute p-2 rounded-xl shadow-xs border text-left overflow-hidden flex flex-col justify-between transition-transform hover:scale-[1.01] hover:shadow-md cursor-pointer select-none ${colorClass}`}
                           >
-                            {/* Render sessions starting in this hour */}
-                            {matchingSessions.map((sess) => {
-                              // Compute duration in hours for block sizing
-                              const [startH, startM] = sess.startTime.split(':').map((v) => parseInt(v, 10));
-                              const [endH, endM] = sess.endTime.split(':').map((v) => parseInt(v, 10));
-                              const durationMinutes = (endH * 60 + (endM || 0)) - (startH * 60 + (startM || 0));
-                              const durationHours = Math.max(1, durationMinutes / 60);
+                            <div>
+                              <h4 className="font-bold text-xs leading-snug line-clamp-2">
+                                {sess.className}
+                              </h4>
+                            </div>
 
-                              // Sizing: base cell is 58px. If duration is 2h, height is ~114px with z-index to overlay
-                              const heightPx = Math.max(50, Math.round(durationHours * 58) - 4);
-
-                              const colorClass = getSessionColorClasses(sess.color);
-
-                              return (
-                                <div
-                                  key={sess.id}
-                                  onClick={(e) => handleSessionClick(sess, e)}
-                                  style={{
-                                    height: `${heightPx}px`,
-                                    zIndex: 10
-                                  }}
-                                  className={`absolute inset-x-1 top-1 p-2 rounded-xl shadow-xs border text-left overflow-hidden flex flex-col justify-between transition-transform hover:scale-[1.01] hover:shadow-md cursor-pointer select-none ${colorClass}`}
-                                >
-                                  <div>
-                                    <h4 className="font-bold text-xs leading-snug line-clamp-2">
-                                      {sess.className}
-                                    </h4>
-                                  </div>
-
-                                  <div className="flex items-center justify-between text-[10px] opacity-90 font-medium pt-1">
-                                    <span>{sess.startTime} - {sess.endTime}</span>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                            <div className="text-[10px] opacity-90 font-medium pt-1">
+                              <span>{sess.startTime} - {sess.endTime}</span>
+                            </div>
                           </div>
                         );
                       })}

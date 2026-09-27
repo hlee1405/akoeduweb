@@ -124,11 +124,23 @@ class StoreService {
 
           const finalStudents = Array.from(studentMap.values());
 
-          // If stored sessions is excessively large (the previous 68-session mock), replace with fresh trimmed INITIAL_SESSIONS
+          // Ensure live ongoing session and standard sessions are present
           const isOldMockSessions = Array.isArray(parsed.sessions) && (parsed.sessions.length > 15 || parsed.sessions.some((s: any) => s.id === 'sess-68'));
-          const storedSessions: CalendarSession[] = (!isOldMockSessions && Array.isArray(parsed.sessions) && parsed.sessions.length > 0)
-            ? parsed.sessions
+          let baseSessions: CalendarSession[] = (!isOldMockSessions && Array.isArray(parsed.sessions) && parsed.sessions.length > 0)
+            ? parsed.sessions.filter((s: any) => s.id !== 'sess-07')
             : INITIAL_SESSIONS;
+
+          // Always ensure the ongoing session exists and is up to date for current simulation
+          const liveInitSession = INITIAL_SESSIONS.find((s) => s.id === 'sess-ongoing-live');
+          if (liveInitSession) {
+            const hasLive = baseSessions.some((s) => s.id === 'sess-ongoing-live' || (s.status === 'ongoing' && s.date === liveInitSession.date));
+            if (!hasLive) {
+              baseSessions = [liveInitSession, ...baseSessions];
+            } else {
+              baseSessions = baseSessions.map((s) => (s.id === 'sess-ongoing-live' ? liveInitSession : s));
+            }
+          }
+          const storedSessions: CalendarSession[] = baseSessions;
 
           const storedNotifications: TeacherNotification[] = Array.isArray(parsed.notifications) && parsed.notifications.length > 0
             ? parsed.notifications
@@ -201,13 +213,29 @@ class StoreService {
               ? rawCreatedAt.replace('2024-', '2026-')
               : rawCreatedAt;
 
+            // Ensure published exams have valid assignedClassIds reflecting actual classes or submissions
+            let assignedClassIds = ex.assignedClassIds;
+            if (!assignedClassIds || assignedClassIds.length === 0) {
+              const matchingSubs = finalSubmissions.filter((s: Submission) => s.examId === exId);
+              const subClassIds = Array.from(new Set(matchingSubs.map((s: Submission) => s.studentClassId).filter(Boolean)));
+              if (subClassIds.length > 0) {
+                assignedClassIds = subClassIds as string[];
+              } else if (ex.status === 'published') {
+                const gradeMatchedClasses = finalClasses.filter((c) => c.grade === ex.grade).map((c) => c.id);
+                assignedClassIds = gradeMatchedClasses.length > 0 ? gradeMatchedClasses : finalClasses.slice(0, 2).map((c) => c.id);
+              } else {
+                assignedClassIds = [];
+              }
+            }
+
             return {
               ...ex,
               id: exId,
               title: cleanedTitle,
               description: cleanedDesc,
               createdAt: normalizedCreatedAt,
-              questions: sanitizedExamQuestions
+              questions: sanitizedExamQuestions,
+              assignedClassIds
             };
           });
 
@@ -363,16 +391,38 @@ class StoreService {
     return true;
   }
 
+  // Helper to ensure all students are unique by id
+  private ensureUniqueStudents(): void {
+    if (!Array.isArray(this.state.students)) {
+      this.state.students = INITIAL_STUDENTS;
+      return;
+    }
+    const map = new Map<string, Student>();
+    this.state.students.forEach((s) => {
+      if (s && s.id) {
+        map.set(s.id, s);
+      }
+    });
+    this.state.students = Array.from(map.values());
+  }
+
   // === Students ===
   public getStudents(): Student[] {
+    this.ensureUniqueStudents();
     return [...this.state.students];
   }
 
   public getActiveStudents(): Student[] {
-    return this.state.students.filter((s) => s.status !== 'pending');
+    this.ensureUniqueStudents();
+    const map = new Map<string, Student>();
+    this.state.students
+      .filter((s) => s.status !== 'pending')
+      .forEach((s) => map.set(s.id, s));
+    return Array.from(map.values());
   }
 
   public getPendingStudents(): Student[] {
+    this.ensureUniqueStudents();
     let pending = this.state.students.filter((s) => s.status === 'pending');
     if (pending.length < 5) {
       INITIAL_STUDENTS.filter((s) => s.status === 'pending').forEach((initPending) => {
@@ -383,6 +433,7 @@ class StoreService {
           this.state.students.push({ ...initPending, status: 'pending' });
         }
       });
+      this.ensureUniqueStudents();
       this.saveToStorage(this.state);
       pending = this.state.students.filter((s) => s.status === 'pending');
     }
@@ -398,27 +449,34 @@ class StoreService {
         this.state.students.push({ ...initPending, status: 'pending' });
       }
     });
+    this.ensureUniqueStudents();
     this.saveToStorage(this.state);
     this.notify();
     return this.state.students.filter((s) => s.status === 'pending');
   }
 
   public getStudentsByClassId(classId: string, status?: 'active' | 'pending' | 'all'): Student[] {
+    this.ensureUniqueStudents();
+    let list = this.state.students.filter((s) => s.classId === classId);
     if (status === 'pending') {
-      return this.state.students.filter((s) => s.classId === classId && s.status === 'pending');
+      list = list.filter((s) => s.status === 'pending');
+    } else if (status === 'active') {
+      list = list.filter((s) => s.status === 'active');
+    } else if (status !== 'all') {
+      list = list.filter((s) => s.status !== 'pending');
     }
-    if (status === 'active') {
-      return this.state.students.filter((s) => s.classId === classId && s.status === 'active');
-    }
-    if (status === 'all') {
-      return this.state.students.filter((s) => s.classId === classId);
-    }
-    // Default to active students when viewing class members
-    return this.state.students.filter((s) => s.classId === classId && s.status !== 'pending');
+    const map = new Map<string, Student>();
+    list.forEach((s) => map.set(s.id, s));
+    return Array.from(map.values());
   }
 
   public getPendingStudentsByClassId(classId: string): Student[] {
-    return this.state.students.filter((s) => s.classId === classId && s.status === 'pending');
+    this.ensureUniqueStudents();
+    const map = new Map<string, Student>();
+    this.state.students
+      .filter((s) => s.classId === classId && s.status === 'pending')
+      .forEach((s) => map.set(s.id, s));
+    return Array.from(map.values());
   }
 
   public approveStudent(id: string, updatedData?: Partial<Student>): Student | undefined {
@@ -722,6 +780,132 @@ class StoreService {
       }
     });
     this.notify();
+  }
+
+  public seedMockSubmissionsForExam(examId: string, countPerClass = 8, force = false): Submission[] {
+    const exam = this.getExamById(examId);
+    if (!exam) return [];
+
+    let targetClasses: ClassRoom[] = [];
+    if (exam.assignedClassIds && exam.assignedClassIds.length > 0) {
+      targetClasses = this.state.classes.filter((c) => exam.assignedClassIds?.includes(c.id));
+    }
+    if (targetClasses.length === 0) {
+      targetClasses = this.state.classes.slice(0, 3);
+    }
+
+    // Check if we already have submissions for each assigned class
+    const existingSubs = this.state.submissions.filter((s) => s.examId === examId);
+    if (!force && existingSubs.length >= targetClasses.length * 4) {
+      const coveredClasses = new Set(existingSubs.map((s) => s.studentClassId));
+      const allCovered = targetClasses.every((c) => coveredClasses.has(c.id));
+      if (allCovered) return existingSubs;
+    }
+
+    // Clear old subs for this exam if re-seeding to ensure clean distribution
+    if (force || existingSubs.length < targetClasses.length * 4) {
+      this.state.submissions = this.state.submissions.filter((s) => s.examId !== examId);
+    }
+
+    const studentPoolsByGrade: string[][] = [
+      [
+        'Duy Anh', 'Trần Bảo Nam', 'Đỗ Hữu Phước', 'Lê Quỳnh Anh',
+        'Phạm Minh Tuấn', 'Nguyễn Đăng Khoa', 'Cao Ngọc Diệp', 'Hoàng Mai Phương',
+        'Vũ Đức Thành', 'Đặng Thùy Dương'
+      ],
+      [
+        'Trần Khánh Linh', 'Nguyễn Hải Đăng', 'Phạm Quỳnh Nga', 'Hoàng Đức Anh',
+        'Lê Trọng Nghĩa', 'Bùi Phương Uyên', 'Võ Hoàng Nam', 'Đinh Thảo Vy',
+        'Ngô Quốc Bảo', 'Phan Thanh Trúc'
+      ],
+      [
+        'Nguyễn Thành Long', 'Lê Ngọc Mai', 'Trần Đình Trọng', 'Vũ Thảo Nguyên',
+        'Phạm Gia Hưng', 'Đỗ Minh Quân', 'Dương Thúy Hằng', 'Bùi Anh Tuấn',
+        'Hoàng Yến Nhi', 'Nguyễn Quốc Hùng'
+      ],
+      [
+        'Lâm Gia Bảo', 'Trương Diệu Linh', 'Vũ Quang Huy', 'Phan Ngọc Hà',
+        'Đặng Quốc Việt', 'Hồ Mỹ Tâm', 'Nguyễn Tiến Dũng', 'Lê Hương Giang'
+      ]
+    ];
+
+    const scoreTemplates = [
+      [10.0, 9.5, 9.0, 9.0, 8.5, 8.5, 8.0, 8.0, 7.5, 7.0],
+      [9.5, 9.0, 8.5, 8.0, 8.0, 7.5, 7.0, 6.5, 6.0, 5.5],
+      [10.0, 9.5, 9.0, 8.5, 8.0, 7.5, 7.0, 6.5, 6.0, 5.0],
+      [9.0, 8.5, 8.0, 8.0, 7.5, 7.0, 6.5, 6.0, 5.5, 5.0]
+    ];
+
+    const now = Date.now();
+    const allGenerated: Submission[] = [];
+
+    targetClasses.forEach((cls, classIdx) => {
+      let classActiveStudents = this.getStudentsByClassId(cls.id, 'active');
+      const pool = studentPoolsByGrade[classIdx % studentPoolsByGrade.length];
+      const scores = scoreTemplates[classIdx % scoreTemplates.length];
+      
+      // If class has no active students, register them so the class is populated
+      if (classActiveStudents.length === 0) {
+        pool.slice(0, countPerClass).forEach((name, sIdx) => {
+          const newStudent: Student = {
+            id: `hs-${cls.id}-${sIdx + 1}`,
+            code: `HS${cls.id.replace(/\D/g, '') || '9'}${String(sIdx + 1).padStart(2, '0')}`,
+            fullName: name,
+            email: `${name.toLowerCase().replace(/\s+/g, '')}@student.edu.vn`,
+            classId: cls.id,
+            status: 'active',
+            joinedAt: new Date().toISOString()
+          };
+          this.state.students.push(newStudent);
+        });
+        classActiveStudents = this.getStudentsByClassId(cls.id, 'active');
+      }
+
+      const studentsCount = Math.min(countPerClass, classActiveStudents.length);
+
+      for (let i = 0; i < studentsCount; i++) {
+        const student = classActiveStudents[i];
+        const studentName = student.fullName;
+        const studentId = student.id;
+        const score = scores[i % scores.length];
+        const durationSeconds = Math.floor((exam.durationMinutes * 60) * (0.5 + Math.random() * 0.45));
+        const submittedAt = new Date(now - (classIdx * 86400000) - (i * 3600000 * 2) - Math.floor(Math.random() * 1800000)).toISOString();
+        const tabSwitchesCount = score < 7.0 ? Math.floor(Math.random() * 3) : 0;
+
+        const answers = (exam.questions || []).map((qItem) => {
+          const isCorrect = Math.random() < (score / 10);
+          return {
+            questionId: qItem.questionId,
+            selectedOptions: isCorrect && qItem.question?.correctAnswers ? [...qItem.question.correctAnswers] : ['A'],
+            isCorrect,
+            scoreAwarded: isCorrect ? qItem.points : 0
+          };
+        });
+
+        const sub: Submission = {
+          id: `sub-${exam.id}-${cls.id}-${i + 1}-${Date.now()}`,
+          examId: exam.id,
+          studentId,
+          studentName,
+          studentClassId: cls.id,
+          className: cls.name,
+          submittedAt,
+          durationSeconds,
+          answers,
+          totalScore: score,
+          maxPossibleScore: exam.maxScore || 10,
+          status: 'graded',
+          needsManualGrading: false,
+          tabSwitchesCount
+        };
+
+        allGenerated.push(sub);
+        this.state.submissions.unshift(sub);
+      }
+    });
+
+    this.notify();
+    return allGenerated;
   }
 
   public addSubmission(submission: Omit<Submission, 'id'>): Submission {

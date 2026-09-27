@@ -25,7 +25,7 @@ import {
   CalendarDays,
   Check
 } from 'lucide-react';
-import { ClassRoom, ClassScheduleItem, ClassTeachingSession, SessionMaterialItem } from '../../../types';
+import { ClassRoom, ClassScheduleItem, ClassTeachingSession, SessionMaterialItem, CalendarSession } from '../../../types';
 import { store } from '../../../services/store';
 import { useToast } from '../../../context/ToastContext';
 import { useTheme } from '../../../context/ThemeContext';
@@ -78,6 +78,14 @@ export const getTeachingSessionStatus = (
       type: 'cancelled',
       label: 'Đã huỷ',
       badgeColor: 'bg-rose-50 text-rose-700 border-rose-200'
+    };
+  }
+
+  if (session.status === 'ongoing') {
+    return {
+      type: 'ongoing',
+      label: 'Đang diễn ra',
+      badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
     };
   }
 
@@ -153,26 +161,62 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
 
   // Initial seed sessions generator based on class metadata
   const getInitialSessions = (): ClassTeachingSession[] => {
+    const teacher = store.getTeacher();
+    const teacherName = teacher?.fullName || 'Vũ Văn Thương';
+
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const curDate = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${curYear}-${curMonth}-${curDate}`;
+    const curHour = now.getHours();
+    const startHour = Math.max(6, Math.min(20, curHour > 0 ? curHour - 1 : 8));
+    const endHour = Math.min(23, startHour + 2);
+    const startStr = `${String(startHour).padStart(2, '0')}:00`;
+    const endStr = `${String(endHour).padStart(2, '0')}:30`;
+
+    const liveOngoingSession: ClassTeachingSession = {
+      id: `ts-${cls.id}-live-ongoing`,
+      classId: cls.id,
+      date: todayStr,
+      dayOfWeek: now.getDay(),
+      shift: 'Ca 1 - 2',
+      startTime: startStr,
+      endTime: endStr,
+      room: cls.schedule?.[0]?.room || 'Phòng 201',
+      format: 'offline',
+      teacherName,
+      title: 'Chuyên đề Bất đẳng thức Cauchy & Luyện thi vào 10 (Ca học trực tiếp)',
+      attendanceDone: false,
+      status: 'ongoing',
+      materials: [
+        { id: `mat-${cls.id}-1`, title: 'Phiếu học tập bài giảng trực tiếp.pdf', type: 'pdf', fileSize: '2.1 MB' }
+      ]
+    };
+
     try {
       const cached = localStorage.getItem(storageKey);
       if (cached) {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((s) => ({
+          const list = parsed.map((s) => ({
             ...s,
-            status: s.status || (s.attendanceDone ? 'completed' : 'upcoming')
+            status: s.id === `ts-${cls.id}-live-ongoing` ? 'ongoing' : (s.status || (s.attendanceDone ? 'completed' : 'upcoming'))
           }));
+          const hasOngoing = list.some((s) => s.id === `ts-${cls.id}-live-ongoing` || (s.date === todayStr && s.status === 'ongoing'));
+          if (!hasOngoing) {
+            return [liveOngoingSession, ...list];
+          }
+          return list;
         }
       }
     } catch {
       // ignore
     }
 
-    const teacher = store.getTeacher();
-    const teacherName = teacher?.fullName || 'Vũ Văn Thương';
-
     // Default realistic seed sessions matching schedule structure
     return [
+      liveOngoingSession,
       {
         id: `ts-${cls.id}-1`,
         classId: cls.id,
@@ -186,7 +230,7 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
         teacherName,
         title: 'Khái niệm & Định nghĩa căn bậc hai số học',
         attendanceDone: false,
-        status: 'upcoming',
+        status: 'completed',
         materials: []
       },
       {
@@ -406,10 +450,20 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
 
   const toggleAllStatuses = () => {
     if (selectedStatuses.length === ALL_STATUSES.length) {
-      setSelectedStatuses(['ongoing', 'upcoming']);
+      // Khi đang chọn tất cả mà bấm -> Bỏ chọn tất cả (bao gồm cả 'ongoing' và 'upcoming')
+      setSelectedStatuses([]);
     } else {
+      // Khi chưa chọn đủ -> Chọn tất cả 4 trạng thái
       setSelectedStatuses([...ALL_STATUSES]);
     }
+  };
+
+  const handleClearAllFilters = () => {
+    setSelectedStatuses([]);
+    setSearchQuery('');
+    setTimeRangeMode('all');
+    setSelectedMonth('all');
+    setFormatFilter('all');
   };
 
   // Time Range Filter: 'all' | 'month' | 'custom_range'
@@ -1291,8 +1345,24 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
                     <Calendar className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                     <p className="font-bold text-slate-600 text-sm">Không tìm thấy buổi học nào</p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Danh sách lịch dạy đang trống hoặc không khớp bộ lọc trạng thái
+                      Danh sách lịch dạy đang trống hoặc chưa chọn trạng thái buổi học nào
                     </p>
+                    <div className="flex items-center justify-center gap-2 mt-3.5">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStatuses(['ongoing', 'upcoming'])}
+                        className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer"
+                      >
+                        Hiện Đang diễn ra & Sắp tới
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedStatuses([...ALL_STATUSES])}
+                        className="px-3 py-1.5 bg-slate-100 text-slate-700 text-xs font-bold rounded-lg border border-slate-200 hover:bg-slate-200 transition-colors cursor-pointer"
+                      >
+                        Hiện tất cả trạng thái
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -1381,8 +1451,11 @@ export const ScheduleManager: React.FC<ScheduleManagerProps> = ({
                       {/* 5. Ghi chú */}
                       <td className="py-3 px-4 text-slate-700">
                         {session.notes ? (
-                          <span className="text-slate-800 font-medium line-clamp-1 max-w-[260px]" title={session.notes}>
-                            {session.notes}
+                          <span
+                            className="text-slate-800 font-medium line-clamp-1 max-w-[260px]"
+                            title={session.notes.replace(/🔴\s*Ca học đang diễn ra trực tiếp:\s*/g, '').replace(/^🔴\s*/g, '')}
+                          >
+                            {session.notes.replace(/🔴\s*Ca học đang diễn ra trực tiếp:\s*/g, '').replace(/^🔴\s*/g, '')}
                           </span>
                         ) : null}
                       </td>

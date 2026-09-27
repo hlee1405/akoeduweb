@@ -2067,92 +2067,115 @@ export const INITIAL_MONTHLY_REPORTS: MonthlyStudentReport[] = [
   }
 ];
 
-export const INITIAL_SESSIONS: CalendarSession[] = [
-  {
-    id: 'sess-01',
-    classId: 'class-9a1',
-    className: 'Toán 9A1 - Kiểm tra định kỳ 45 phút',
-    subject: 'Toán học',
-    date: '2026-09-17',
-    startTime: '08:00',
-    endTime: '09:30',
-    room: 'Phòng 201',
-    color: 'indigo',
-    notes: 'Kiểm tra khảo sát 45 phút đầu năm học'
-  },
-  {
-    id: 'sess-02',
-    classId: 'class-9a2',
-    className: 'Toán 9A2 - Luyện tập hàm số',
-    subject: 'Đại số 9',
-    date: '2026-09-18',
-    startTime: '14:00',
-    endTime: '15:30',
-    room: 'Phòng 102',
-    color: 'indigo',
-    notes: 'Ôn tập đồ thị và phương trình bậc nhất'
-  },
-  {
-    id: 'sess-03',
-    classId: 'class-9a1',
-    className: 'Toán 9A1 - Bất đẳng thức Cô-si',
-    subject: 'Đại số 9',
-    date: '2026-09-21',
-    startTime: '07:00',
-    endTime: '08:30',
-    room: 'Phòng 201',
-    color: 'indigo',
-    notes: 'Chuyên đề bất đẳng thức nâng cao'
-  },
-  {
-    id: 'sess-04',
-    classId: 'class-9a2',
-    className: 'Toán 9A2 - Căn thức bậc hai & Rút gọn',
-    subject: 'Đại số 9',
-    date: '2026-09-22',
-    startTime: '09:00',
-    endTime: '10:30',
-    room: 'Phòng 102',
-    color: 'amber',
-    notes: 'Rèn luyện kỹ năng biến đổi và rút gọn'
-  },
-  {
-    id: 'sess-05',
-    classId: 'class-9a1',
-    className: 'Toán 9A1 - Hệ thức lượng tam giác',
-    subject: 'Hình học 9',
-    date: '2026-09-24',
-    startTime: '15:00',
-    endTime: '16:30',
-    room: 'Phòng 201',
-    color: 'indigo',
-    notes: 'Hệ thức lượng trong tam giác vuông'
-  },
-  {
-    id: 'sess-06',
-    classId: 'class-8a1',
-    className: 'Toán 8A1 - Hằng đẳng thức đáng nhớ',
-    subject: 'Toán học 8',
-    date: '2026-09-21',
-    startTime: '15:30',
-    endTime: '17:00',
-    room: 'Phòng 203',
-    color: 'teal',
-    notes: 'Vận dụng 7 hằng đẳng thức vào phân tích đa thức'
-  },
-  {
-    id: 'sess-07',
-    classId: 'class-9a3',
-    className: 'Toán 9A3 - Cực trị Hình học & Bất đẳng thức',
-    subject: 'Toán nâng cao',
-    date: '2026-09-20',
-    startTime: '08:00',
-    endTime: '10:00',
-    room: 'Phòng 201',
-    color: 'rose',
-    notes: 'Kỹ thuật dồn biến và Cauchy-Schwarz trong hình học'
-  }
-];
+const createInitialSessions = (): CalendarSession[] => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  const todayStr = `${y}-${m}-${d}`;
+
+  const curHour = now.getHours();
+  const startHour = Math.max(6, Math.min(20, curHour > 0 ? curHour - 1 : 8));
+  const endHour = Math.min(23, startHour + 2);
+  const startStr = `${String(startHour).padStart(2, '0')}:00`;
+  const endStr = `${String(endHour).padStart(2, '0')}:30`;
+
+  return [
+    {
+      id: 'sess-ongoing-live',
+      classId: 'class-9a1',
+      className: 'Toán 9A1 - Luyện thi Chuyên & Bất đẳng thức Cauchy',
+      subject: 'Đại số & Hình học 9',
+      date: todayStr,
+      startTime: startStr,
+      endTime: endStr,
+      room: 'Phòng 201',
+      color: 'emerald',
+      status: 'ongoing',
+      notes: 'Luyện giải bất đẳng thức Cauchy & Đề thi vào 10'
+    },
+    {
+      id: 'sess-01',
+      classId: 'class-9a1',
+      className: 'Toán 9A1 - Kiểm tra định kỳ 45 phút',
+      subject: 'Toán học',
+      date: '2026-09-17',
+      startTime: '08:00',
+      endTime: '09:30',
+      room: 'Phòng 201',
+      color: 'indigo',
+      status: 'completed',
+      notes: 'Kiểm tra khảo sát 45 phút đầu năm học'
+    },
+    {
+      id: 'sess-02',
+      classId: 'class-9a2',
+      className: 'Toán 9A2 - Luyện tập hàm số',
+      subject: 'Đại số 9',
+      date: '2026-09-18',
+      startTime: '14:00',
+      endTime: '15:30',
+      room: 'Phòng 102',
+      color: 'indigo',
+      status: 'completed',
+      notes: 'Ôn tập đồ thị và phương trình bậc nhất'
+    },
+    {
+      id: 'sess-03',
+      classId: 'class-9a1',
+      className: 'Toán 9A1 - Bất đẳng thức Cô-si',
+      subject: 'Đại số 9',
+      date: '2026-09-21',
+      startTime: '07:00',
+      endTime: '08:30',
+      room: 'Phòng 201',
+      color: 'indigo',
+      status: 'completed',
+      notes: 'Chuyên đề bất đẳng thức nâng cao'
+    },
+    {
+      id: 'sess-04',
+      classId: 'class-9a2',
+      className: 'Toán 9A2 - Căn thức bậc hai & Rút gọn',
+      subject: 'Đại số 9',
+      date: '2026-09-22',
+      startTime: '09:00',
+      endTime: '10:30',
+      room: 'Phòng 102',
+      color: 'amber',
+      status: 'completed',
+      notes: 'Rèn luyện kỹ năng biến đổi và rút gọn'
+    },
+    {
+      id: 'sess-05',
+      classId: 'class-9a1',
+      className: 'Toán 9A1 - Hệ thức lượng tam giác',
+      subject: 'Hình học 9',
+      date: '2026-09-24',
+      startTime: '15:00',
+      endTime: '16:30',
+      room: 'Phòng 201',
+      color: 'indigo',
+      status: 'completed',
+      notes: 'Hệ thức lượng trong tam giác vuông'
+    },
+    {
+      id: 'sess-06',
+      classId: 'class-8a1',
+      className: 'Toán 8A1 - Hằng đẳng thức đáng nhớ',
+      subject: 'Toán học 8',
+      date: '2026-09-26',
+      startTime: '15:30',
+      endTime: '17:00',
+      room: 'Phòng 203',
+      color: 'teal',
+      status: 'upcoming',
+      notes: 'Vận dụng 7 hằng đẳng thức vào phân tích đa thức'
+    }
+  ];
+};
+
+export const INITIAL_SESSIONS: CalendarSession[] = createInitialSessions();
 
 
 export const INITIAL_NOTIFICATIONS: TeacherNotification[] = [
